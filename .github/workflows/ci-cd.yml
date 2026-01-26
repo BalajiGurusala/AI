@@ -1,0 +1,41 @@
+name: Fraud Drift CI/CD
+
+on: 
+ push:
+  branches: [ "main" ]
+  paths:
+    - 'ML_OPS/DemoCode_M6_Performance_Monitoring/**'
+  
+  pull_request:
+   branches: [ "main" ]
+
+jobs:
+  build-and-train:
+    runs-on: ubuntu-latest
+
+    # This tells GitHub to run all steps inside your project subfolder
+    defaults:
+      run:
+        working-directory: ML_OPS/DemoCode_M6_Performance_Monitoring
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4 # Updated to latest version
+
+    - name: Install dependencies
+      run: |
+        pip install -r requirements.txt
+    - name: Setup Kaggle credentials
+      env:
+        KAGGLE_USERNAME: ${{ secrets.KAGGLE_USERNAME }}
+        KAGGLE_KEY: ${{ secrets.KAGGLE_KEY }}
+      run: |
+        mkdir -p ~/.kaggle
+        echo "{\"username\":\"$KAGGLE_USERNAME\",\"key\":\"$KAGGLE_KEY\"}" > ~/.kaggle/kaggle.json
+        chmod 600 ~/.kaggle/kaggle.json
+    - name: Download Data
+      run: bash download_data.sh
+    - name: Train model
+      run: bash run_training.sh
+    - name: Run drift check
+      run: python monitor.py
