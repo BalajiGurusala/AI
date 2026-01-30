@@ -1,0 +1,20 @@
+{
+  "C": 0.4718893416337344,
+  "bootstrap": false,
+  "class_weight": "balanced",
+  "criterion": "gini",
+  "dropout_1": 0.40268559934984194,
+  "dropout_2": 0.2569894605096694,
+  "epochs": 10,
+  "learning_rate": 0.2320048650947785,
+  "lr": 0.0008442885766471285,
+  "max_depth": 50,
+  "max_features": null,
+  "min_samples_leaf": 1,
+  "min_samples_split": 5,
+  "model_type": "decision_tree",
+  "n_estimators": 50,
+  "subsample": 0.5305930999648674,
+  "units_1": 128,
+  "units_2": 32
+}

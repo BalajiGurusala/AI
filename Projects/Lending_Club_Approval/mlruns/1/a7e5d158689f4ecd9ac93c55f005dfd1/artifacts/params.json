@@ -1,0 +1,20 @@
+{
+  "C": 0.001087315095717874,
+  "bootstrap": false,
+  "class_weight": "balanced",
+  "criterion": "entropy",
+  "dropout_1": 0.46663178844095954,
+  "dropout_2": 0.36778564385615076,
+  "epochs": 10,
+  "learning_rate": 0.1808469591472038,
+  "lr": 0.007235376805129116,
+  "max_depth": 30,
+  "max_features": "log2",
+  "min_samples_leaf": 5,
+  "min_samples_split": 10,
+  "model_type": "keras",
+  "n_estimators": 200,
+  "subsample": 0.5451975708925965,
+  "units_1": 32,
+  "units_2": 32
+}

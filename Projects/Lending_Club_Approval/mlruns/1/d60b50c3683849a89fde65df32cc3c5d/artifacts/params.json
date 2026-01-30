@@ -1,0 +1,20 @@
+{
+  "C": 0.2698320638528243,
+  "bootstrap": false,
+  "class_weight": null,
+  "criterion": "gini",
+  "dropout_1": 0.45606862425206807,
+  "dropout_2": 0.19469736576838292,
+  "epochs": 10,
+  "learning_rate": 0.0027003830504283466,
+  "lr": 0.0004959614387803996,
+  "max_depth": 10,
+  "max_features": null,
+  "min_samples_leaf": 5,
+  "min_samples_split": 5,
+  "model_type": "xgboost",
+  "n_estimators": 200,
+  "subsample": 0.9990358645642536,
+  "units_1": 32,
+  "units_2": 16
+}

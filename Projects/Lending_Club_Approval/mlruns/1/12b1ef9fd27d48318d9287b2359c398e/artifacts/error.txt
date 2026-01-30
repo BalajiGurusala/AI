@@ -1,0 +1,24 @@
+Failure # 1 (occurred at 2026-01-29_19-37-59)
+[36mray::ImplicitFunc.train()[39m (pid=18870, ip=127.0.0.1, actor_id=379c78ebb7286d219b69cac201000000, repr=train_lending_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/air/_internal/util.py", line 98, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/util.py", line 130, in inner
+    return trainable(config, **fn_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/src/train_ray.py", line 143, in train_lending_model
+    train.report({"accuracy": acc, "loss": loss})
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/train/v2/_internal/util.py", line 273, in _wrapped_fn
+    raise DeprecationWarning(
+DeprecationWarning: `ray.train.report` is deprecated when running in a function passed to Ray Tune. Please use the equivalent `ray.tune` API instead. See this issue for more context: https://github.com/ray-project/ray/issues/49454

@@ -1,0 +1,20 @@
+{
+  "C": 1.751076066967147,
+  "bootstrap": false,
+  "class_weight": null,
+  "criterion": "entropy",
+  "dropout_1": 0.4673729014154907,
+  "dropout_2": 0.18479461752904267,
+  "epochs": 10,
+  "learning_rate": 0.003467343379357304,
+  "lr": 0.0002742023305869012,
+  "max_depth": 30,
+  "max_features": "sqrt",
+  "min_samples_leaf": 5,
+  "min_samples_split": 20,
+  "model_type": "xgboost",
+  "n_estimators": 200,
+  "subsample": 0.5288491677935565,
+  "units_1": 128,
+  "units_2": 32
+}

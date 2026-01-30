@@ -1,0 +1,2 @@
+accuracy,loss,timestamp,checkpoint_dir_name,done,training_iteration,trial_id,date,time_this_iter_s,time_total_s,pid,hostname,node_ip,time_since_restore,iterations_since_restore
+0.6698478204797523,0.625529565713403,1769745438,,True,1,ba894_00004,2026-01-29_19-57-18,3.188322067260742,3.188322067260742,19751,CEPSNYODSTD9690,127.0.0.1,3.188322067260742,1

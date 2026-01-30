@@ -1,0 +1,25 @@
+Failure # 1 (occurred at 2026-01-29_19-35-04)
+[36mray::ImplicitFunc.train()[39m (pid=18623, ip=127.0.0.1, actor_id=703aa1a971f12ffdef68c71801000000, repr=train_lending_model)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/trainable.py", line 331, in train
+    raise skipped from exception_cause(skipped)
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/air/_internal/util.py", line 98, in run
+    self._ret = self._target(*self._args, **self._kwargs)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 44, in <lambda>
+    training_func=lambda: self._trainable_func(self.config),
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/function_trainable.py", line 249, in _trainable_func
+    output = fn()
+             ^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/tune/trainable/util.py", line 130, in inner
+    return trainable(config, **fn_kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/src/train_ray.py", line 152, in train_lending_model
+    tune.report(accuracy=acc, loss=loss)
+  File "/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/ray/train/_internal/session.py", line 683, in wrapper
+    return fn(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^
+TypeError: report() got an unexpected keyword argument 'accuracy'

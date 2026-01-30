@@ -1,0 +1,20 @@
+{
+  "C": 0.00048165265269231773,
+  "bootstrap": false,
+  "class_weight": null,
+  "criterion": "entropy",
+  "dropout_1": 0.3589860264582172,
+  "dropout_2": 0.2648442308829407,
+  "epochs": 10,
+  "learning_rate": 0.004321105312256365,
+  "lr": 0.00010310482077666124,
+  "max_depth": 20,
+  "max_features": "sqrt",
+  "min_samples_leaf": 2,
+  "min_samples_split": 20,
+  "model_type": "logistic_regression",
+  "n_estimators": 300,
+  "subsample": 0.5252997126198502,
+  "units_1": 32,
+  "units_2": 64
+}

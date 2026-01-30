@@ -1,0 +1,20 @@
+{
+  "C": 0.02135889345973996,
+  "bootstrap": true,
+  "class_weight": "balanced",
+  "criterion": "gini",
+  "dropout_1": 0.35221636790415234,
+  "dropout_2": 0.3381849569290847,
+  "epochs": 10,
+  "learning_rate": 0.1036725442897668,
+  "lr": 0.005200604156919252,
+  "max_depth": 20,
+  "max_features": null,
+  "min_samples_leaf": 1,
+  "min_samples_split": 2,
+  "model_type": "keras",
+  "n_estimators": 100,
+  "subsample": 0.6165168173837698,
+  "units_1": 64,
+  "units_2": 16
+}
