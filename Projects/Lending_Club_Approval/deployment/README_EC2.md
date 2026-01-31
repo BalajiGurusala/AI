@@ -1,6 +1,8 @@
 # EC2 Deployment Guide: Lending Club MLOps Stack
 
-This guide provides step-by-step instructions to deploy the entire Lending Club MLOps infrastructure (Airflow, MLflow, Feast, FastAPI) on an AWS EC2 instance.
+This guide provides instructions to deploy the entire Lending Club MLOps infrastructure (Airflow, MLflow, Feast, FastAPI) on an AWS EC2 instance.
+
+You can choose between the **Automated Approach** (Recommended) or the **Manual Approach**.
 
 ---
 
@@ -16,10 +18,39 @@ This guide provides step-by-step instructions to deploy the entire Lending Club 
 
 ---
 
-## 2. Environment Setup
+## 2. Option A: Automated Deployment (Recommended)
 
-Connect to your instance via SSH and run the following setup script:
+This method uses the provided helper scripts to configure the environment and launch the stack in minutes.
 
+### Step 1: Clone Repository
+Connect to your instance via SSH:
+```bash
+git clone <your-repository-url>
+cd Lending_Club_Approval
+```
+
+### Step 2: System Setup
+Run the setup script to update the system and install Docker.
+```bash
+chmod +x deployment/setup_ec2.sh
+./deployment/setup_ec2.sh
+```
+**Important:** After this script finishes, **log out and log back in** to refresh your user permissions.
+
+### Step 3: Launch Stack
+Run the deployment script. It will prompt you for your AWS credentials (required for S3 artifact storage) and start the containers.
+```bash
+chmod +x deployment/deploy_stack.sh
+./deployment/deploy_stack.sh
+```
+
+---
+
+## 3. Option B: Manual Deployment
+
+Follow these steps if you prefer to configure the server manually or need to debug the setup process.
+
+### Step 1: Install Dependencies
 ```bash
 # Update system
 sudo apt-get update && sudo apt-get upgrade -y
@@ -43,16 +74,9 @@ sudo usermod -aG docker $USER
 newgrp docker
 ```
 
----
-
-## 3. Clone and Configure
-
+### Step 2: Configure Environment
+Create the `.env` file in the project root. This file injects secrets into the containers.
 ```bash
-# Clone the repository
-git clone <your-repository-url>
-cd Lending_Club_Approval
-
-# Create the .env file for sensitive configurations
 cat <<EOF > .env
 AWS_ACCESS_KEY_ID=YOUR_ACCESS_KEY
 AWS_SECRET_ACCESS_KEY=YOUR_SECRET_KEY
@@ -62,21 +86,18 @@ PROJECT_HOME=/opt/airflow
 EOF
 ```
 
----
-
-## 4. Launch Infrastructure
-
-Deploy all services using Docker Compose:
-
+### Step 3: Launch Docker Compose
 ```bash
 docker compose up -d --build
 ```
 
 ---
 
-## 5. Verification Checklist
+## 4. Verification Checklist
 
-### 5.1 Service Health
+Regardless of the deployment method, verify the system health:
+
+### Service Health
 Run `docker compose ps` to ensure all 6 containers are running:
 *   `postgres`: Healthy
 *   `mlflow`: Up
@@ -85,14 +106,14 @@ Run `docker compose ps` to ensure all 6 containers are running:
 *   `airflow-webserver`: Up
 *   `airflow-scheduler`: Up
 
-### 5.2 Manual Training Test
+### Manual Training Test
 Verify that the Linux-based training pipeline can successfully run and upload artifacts to S3:
 ```bash
 docker compose run --rm fastapi-app python src/train_ray.py
 ```
 Check your S3 bucket for `artifacts/best_model.pkl`.
 
-### 5.3 API End-to-End Test
+### API End-to-End Test
 ```bash
 curl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
@@ -106,7 +127,7 @@ curl -X POST "http://localhost:8000/predict" \
 
 ---
 
-## 6. Remote UI Access (Tunneling)
+## 5. Remote UI Access (Tunneling)
 
 To access the Airflow and MLflow UIs securely from your local Mac without exposing ports to the public internet, use SSH tunneling:
 
@@ -119,5 +140,3 @@ You can then visit:
 *   **Airflow**: `http://localhost:8080` (admin/admin)
 *   **MLflow**: `http://localhost:5000`
 *   **FastAPI Docs**: `http://localhost:8000/docs`
-
-```
