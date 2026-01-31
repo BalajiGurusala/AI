@@ -38,11 +38,23 @@ else
     echo "✅ .env file found. Skipping configuration."
 fi
 
-# 2. Launch Stack
+# 2. Permissions and Directories
+echo "📂 Preparing directories and permissions..."
+mkdir -p data models mlruns mlartifacts
+# Ensure the Docker 'airflow' user (UID 50000) and MLflow can write to these
+sudo chmod -R 777 data models mlruns mlartifacts
+if [ -f "mlflow.db" ]; then
+    sudo chmod 666 mlflow.db
+else
+    touch mlflow.db
+    sudo chmod 666 mlflow.db
+fi
+
+# 3. Launch Stack
 echo "🐳 Building and starting containers..."
 docker compose up -d --build
 
-# 3. Health Check
+# 4. Health Check
 echo "⏳ Waiting for services to stabilize..."
 sleep 10
 docker compose ps
