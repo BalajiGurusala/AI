@@ -33,7 +33,7 @@ with DAG(
     feature_store_sync = BashOperator(
         task_id='feature_store_sync',
         bash_command=f'cd {project_dir}/feature_repo && '
-                     f'../.venv/bin/feast materialize-incremental $(date +%Y-%m-%d)',
+                     f'feast materialize-incremental $(date +%Y-%m-%d)',
     )
 
     # Task 2: model_tuning
@@ -43,7 +43,7 @@ with DAG(
         bash_command=f'cd {project_dir} && '
                      'export PYTHONPATH=$PYTHONPATH:. && '
                      'export UPLOAD_TO_S3=true && ' # Trigger S3 persistence
-                     '.venv/bin/python src/train_ray.py',
+                     'python src/train_ray.py',
     )
 
     # Set dependency: Sync features before starting the tuning job
