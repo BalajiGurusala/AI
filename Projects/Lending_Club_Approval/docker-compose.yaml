@@ -84,6 +84,7 @@ services:
       - PYTHONPATH=/opt/airflow:/opt/airflow/src
       - PROJECT_HOME=/opt/airflow
       - MLFLOW_TRACKING_URI=http://mlflow:5000
+      - MLFLOW_ARTIFACT_ROOT=/tmp/mlartifacts
     env_file:
       - .env
     volumes:
