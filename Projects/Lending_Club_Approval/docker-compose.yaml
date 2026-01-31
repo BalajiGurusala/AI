@@ -93,14 +93,9 @@ services:
       - ./feature_repo:/opt/airflow/feature_repo
       - ./requirements.txt:/opt/airflow/requirements.txt
       # Mount models to save artifacts accessible to host/FastAPI
-      - ./models:/opt/airflow/models 
-    deploy:
-      resources:
-        reservations:
-          devices:
-            - driver: nvidia
-              count: 1
-              capabilities: [gpu]
+      - ./models:/opt/airflow/models
+      # Mount mlartifacts so Ray/MLflow client can write to it (fixes PermissionError)
+      - ./mlartifacts:/mlartifacts
     command: scheduler
 
   fastapi-app:
