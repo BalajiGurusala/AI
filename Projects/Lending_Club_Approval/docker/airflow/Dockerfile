@@ -20,7 +20,7 @@ RUN pip install --no-cache-dir \
     pandas \
     scikit-learn \
     xgboost \
-    mlflow \
+    mlflow==2.14.1 \
     "ray[tune]" \
     joblib \
     feast \
