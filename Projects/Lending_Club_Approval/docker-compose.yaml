@@ -53,9 +53,8 @@ services:
       - AIRFLOW__DATABASE__SQL_ALCHEMY_CONN=postgresql+psycopg2://airflow:airflow@postgres/airflow
       - AIRFLOW__CORE__LOAD_EXAMPLES=False
       - AIRFLOW__CORE__HOSTNAME_CALLABLE=airflow.utils.net.get_host_ip_address
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - DEFAULT_BUCKET=${DEFAULT_BUCKET}
+    env_file:
+      - .env
     volumes:
       - ./dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
@@ -82,9 +81,8 @@ services:
       - PYTHONPATH=/opt/airflow:/opt/airflow/src
       - PROJECT_HOME=/opt/airflow
       - MLFLOW_TRACKING_URI=http://mlflow:5000
-      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
-      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
-      - DEFAULT_BUCKET=${DEFAULT_BUCKET}
+    env_file:
+      - .env
     volumes:
       - ./dags:/opt/airflow/dags
       - ./src:/opt/airflow/src
