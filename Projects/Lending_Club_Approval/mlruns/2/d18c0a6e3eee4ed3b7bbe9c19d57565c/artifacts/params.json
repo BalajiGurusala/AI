@@ -1,0 +1,20 @@
+{
+  "C": 1.8162749341145752,
+  "bootstrap": false,
+  "class_weight": null,
+  "criterion": "gini",
+  "dropout_1": 0.4878759647387959,
+  "dropout_2": 0.4172613197748477,
+  "epochs": 10,
+  "learning_rate": 0.0015877203418396522,
+  "lr": 0.002088843651855025,
+  "max_depth": null,
+  "max_features": null,
+  "min_samples_leaf": 1,
+  "min_samples_split": 20,
+  "model_type": "logistic_regression",
+  "n_estimators": 50,
+  "subsample": 0.9265122837688123,
+  "units_1": 64,
+  "units_2": 16
+}

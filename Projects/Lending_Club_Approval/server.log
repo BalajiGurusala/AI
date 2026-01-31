@@ -1,4 +1,4 @@
-/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/app/main.py:35: DeprecationWarning: 
+/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/app/main.py:37: DeprecationWarning: 
         on_event is deprecated, use lifespan event handlers instead.
 
         Read more about it in the
@@ -12,22 +12,14 @@
         [FastAPI docs for Lifespan Events](https://fastapi.tiangolo.com/advanced/events/).
         
   return self.router.on_event(event_type)
-INFO:     Started server process [25823]
+INFO:     Started server process [63093]
 INFO:     Waiting for application startup.
-2026-01-29 22:12:05.932445: I metal_plugin/src/device/metal_device.cc:1154] Metal device set to: Apple M3 Max
-2026-01-29 22:12:05.932500: I metal_plugin/src/device/metal_device.cc:296] systemMemory: 36.00 GB
-2026-01-29 22:12:05.932509: I metal_plugin/src/device/metal_device.cc:313] maxCacheSize: 14.04 GB
-2026-01-29 22:12:05.932540: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:305] Could not identify NUMA node of platform GPU ID 0, defaulting to 0. Your kernel may not have been built with NUMA support.
-2026-01-29 22:12:05.932551: I tensorflow/core/common_runtime/pluggable_device/pluggable_device_factory.cc:271] Created TensorFlow device (/job:localhost/replica:0/task:0/device:GPU:0 with 0 MB memory) -> physical PluggableDevice (device: 0, name: METAL, pci bus id: <undefined>)
 INFO:     Application startup complete.
 INFO:     Uvicorn running on http://127.0.0.1:8000 (Press CTRL+C to quit)
-/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/app/main.py:125: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/app/main.py:122: PydanticDeprecatedSince20: The `dict` method is deprecated; use `model_dump` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
   request_data = request.dict(by_alias=True, exclude_unset=True)
-2026-01-29 22:12:08.920341: I tensorflow/core/grappler/optimizers/custom_graph_optimizer_registry.cc:117] Plugin optimizer for device_type GPU is enabled.
-/Users/balaji.gurusala/Documents/Code/AI_Coding/AI/Projects/Lending_Club_Approval/.venv/lib/python3.11/site-packages/keras/src/utils/python_utils.py:196: DeprecationWarning: Conversion of an array with ndim > 0 to a scalar is deprecated, and will error in future. Ensure you extract a single element from your array before performing this operation. (Deprecated NumPy 1.25.)
-  value = float(value)
-Model loaded from models/best_model.keras
+Sklearn/XGBoost model loaded from models/best_model.pkl
 Scaler loaded from data/minmax_scaler.pkl
 Feature Store connected at feature_repo
 Loaded loans.csv with 38770 records
-INFO:     127.0.0.1:53276 - "POST /predict HTTP/1.1" 200 OK
+INFO:     127.0.0.1:64739 - "POST /predict HTTP/1.1" 200 OK

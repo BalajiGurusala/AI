@@ -1,0 +1,20 @@
+{
+  "C": 0.05432683592287444,
+  "bootstrap": false,
+  "class_weight": null,
+  "criterion": "entropy",
+  "dropout_1": 0.21057521429126852,
+  "dropout_2": 0.21973683041240008,
+  "epochs": 10,
+  "learning_rate": 0.0018972928163879948,
+  "lr": 0.0034141338400403443,
+  "max_depth": 40,
+  "max_features": "log2",
+  "min_samples_leaf": 4,
+  "min_samples_split": 10,
+  "model_type": "decision_tree",
+  "n_estimators": 100,
+  "subsample": 0.8646749792319569,
+  "units_1": 256,
+  "units_2": 64
+}

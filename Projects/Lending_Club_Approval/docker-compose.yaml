@@ -15,11 +15,13 @@ services:
       retries: 5
 
   mlflow:
-    image: ghcr.io/mlflow/mlflow:v2.10.0
+    image: python:3.11-slim
     ports:
       - "5000:5000"
-    # Serve artifacts from local directory
-    command: mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlartifacts --host 0.0.0.0
+    # Install matching MLflow version and start server
+    command: >
+      sh -c "pip install mlflow==3.9.0 psycopg2-binary && 
+             mlflow server --backend-store-uri sqlite:///mlflow.db --default-artifact-root /mlartifacts --host 0.0.0.0"
     volumes:
       - ./mlruns:/mlflow/mlruns
       - ./mlartifacts:/mlartifacts
@@ -81,7 +83,7 @@ services:
       # Mount models to save artifacts accessible to host/FastAPI
       - ./models:/opt/airflow/models 
     # Install dependencies before starting scheduler to ensure Ray/Feast tasks run
-    command: /bin/bash -c "pip install -r /opt/airflow/requirements.txt && airflow scheduler"
+    command: scheduler
 
   fastapi-app:
     build: .

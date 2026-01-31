@@ -136,8 +136,6 @@ DROP_COLS = [
     'id', 
     'member_id', 
     'home_ownership', # String retained for Feast, dropped for model (OHE exists)
-    'grade', 
-    'sub_grade', 
     'emp_title', 
     'issue_d', 
     'title', 

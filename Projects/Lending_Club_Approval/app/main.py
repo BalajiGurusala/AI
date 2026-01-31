@@ -16,12 +16,14 @@ from src.preprocessing import preprocess_lending_data, DROP_COLS
 app = FastAPI(title="Lending Club Credit Scoring API")
 
 # Load artifacts
-MODEL_PATH = os.path.join("models", "best_model.keras")
+MODEL_KERAS_PATH = os.path.join("models", "best_model.keras")
+MODEL_PKL_PATH = os.path.join("models", "best_model.pkl")
 SCALER_PATH = os.path.join("data", "minmax_scaler.pkl")
 FEATURE_REPO_PATH = "feature_repo"
 DATA_PATH = os.path.join("data", "loans.csv")
 
 model = None
+model_type = None # "keras" or "sklearn"
 scaler = None
 store = None
 loans_df = None
@@ -34,14 +36,19 @@ class LoanRequest(BaseModel):
 
 @app.on_event("startup")
 def load_artifacts():
-    global model, scaler, store, loans_df
+    global model, model_type, scaler, store, loans_df
     try:
-        # Load Keras model
-        if os.path.exists(MODEL_PATH):
-            model = keras.models.load_model(MODEL_PATH)
-            print(f"Model loaded from {MODEL_PATH}")
+        # Load Best Model (Detect type)
+        if os.path.exists(MODEL_KERAS_PATH):
+            model = keras.models.load_model(MODEL_KERAS_PATH)
+            model_type = "keras"
+            print(f"Keras model loaded from {MODEL_KERAS_PATH}")
+        elif os.path.exists(MODEL_PKL_PATH):
+            model = joblib.load(MODEL_PKL_PATH)
+            model_type = "sklearn"
+            print(f"Sklearn/XGBoost model loaded from {MODEL_PKL_PATH}")
         else:
-            print(f"Warning: Model not found at {MODEL_PATH}")
+            print("Warning: No model found in models/ directory")
 
         # Load Scaler
         if os.path.exists(SCALER_PATH):
@@ -59,10 +66,7 @@ def load_artifacts():
             
         # Load loans.csv for lookup
         if os.path.exists(DATA_PATH):
-            # Read only columns that might be needed to save memory if file is huge
-            # But for simplicity, read all and index
             df = pd.read_csv(DATA_PATH)
-            # Ensure id is unique and set as index
             if 'id' in df.columns:
                 df = df.drop_duplicates(subset=['id'])
                 df.set_index('id', inplace=True)
@@ -82,20 +86,17 @@ def predict_default(request: LoanRequest):
         raise HTTPException(status_code=503, detail="Service not ready (artifacts missing)")
 
     try:
-        # 1. Fetch from CSV (Historical Context & Static Attributes)
-        # We need fields like int_rate, grade, emp_length, etc. which are not in the minimal request
+        # 1. Fetch from CSV
         csv_data = {}
         if loans_df is not None:
             if request.borrower_id in loans_df.index:
-                # Convert row to dict, handling potential NaNs
                 csv_data = loans_df.loc[request.borrower_id].to_dict()
-                # Remove target if present to prevent leakage/confusion
                 csv_data.pop('loan_status', None)
                 csv_data.pop('member_id', None) 
             else:
                 print(f"Warning: Borrower {request.borrower_id} not found in loans.csv")
 
-        # 2. Fetch features from Feast (Online Features - Updated/Correct Source of Truth)
+        # 2. Fetch from Feast
         feature_vector = store.get_online_features(
             features=[
                 "lending_features:annual_inc",
@@ -113,15 +114,11 @@ def predict_default(request: LoanRequest):
             entity_rows=[{"borrower_id": request.borrower_id}]
         ).to_dict()
         
-        # Clean Feast result: remove borrower_id key, remove None values to let CSV values persist if Feast misses
         feast_data = {k: v[0] for k, v in feature_vector.items() if k != "borrower_id" and v is not None and len(v) > 0 and v[0] is not None}
 
         # 3. Combine Data
-        # Base: CSV Data -> Override with Feast Data -> Override with Request Data (Explicit only)
         combined_data = csv_data.copy()
         combined_data.update(feast_data)
-        
-        # Only update with fields explicitly set in the request to avoid overwriting real data with defaults
         request_data = request.dict(by_alias=True, exclude_unset=True)
         combined_data.update(request_data)
         
@@ -132,34 +129,31 @@ def predict_default(request: LoanRequest):
         processed_df = preprocess_lending_data(full_df)
         
         # 6. Align columns with Scaler
-        # Drop non-feature columns
         processed_df = processed_df.drop(columns=[c for c in DROP_COLS if c in processed_df.columns], errors='ignore')
         processed_df = processed_df.select_dtypes(exclude=['object']) 
         
         if hasattr(scaler, "feature_names_in_"):
             expected_features = scaler.feature_names_in_
         else:
-            raise HTTPException(status_code=500, detail="Scaler configuration error (missing feature names)")
+            raise HTTPException(status_code=500, detail="Scaler configuration error")
 
-        # Add missing columns with 0
         for col in expected_features:
             if col not in processed_df.columns:
                 processed_df[col] = 0
         
-        # Ensure order
         X = processed_df[expected_features]
-        
-        # Fill NaNs
         X = X.fillna(0)
         
         # 7. Scale
         X_scaled = scaler.transform(X)
         
         # 8. Predict
-        prob = model.predict(X_scaled, verbose=0)[0][0]
+        if model_type == "keras":
+            prob = model.predict(X_scaled, verbose=0)[0][0]
+        else:
+            # sklearn models (LogReg, RF, XGB)
+            prob = model.predict_proba(X_scaled)[0][1]
         
-        # Approval Threshold: 0.20 (20% chance of default is the cutoff)
-        # This is more realistic for unsecured lending than 0.50
         return {
             "borrower_id": request.borrower_id,
             "default_probability": float(prob),
