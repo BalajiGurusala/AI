@@ -18,10 +18,14 @@ services:
     image: python:3.11-slim
     ports:
       - "5000:5000"
+    environment:
+      - MLFLOW_HOST=0.0.0.0
+      - MLFLOW_PORT=5000
+      - MLFLOW_GUNICORN_OPTS=--forwarded-allow-ips='*'
     # Install matching MLflow version and start server
     command: >
       sh -c "pip install mlflow==3.9.0 psycopg2-binary && 
-             mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlartifacts --host 0.0.0.0 --port 5000 --gunicorn-opts \"--forwarded-allow-ips='*'\""
+             mlflow server --backend-store-uri sqlite:////mlflow/mlflow.db --default-artifact-root /mlartifacts"
     volumes:
       - ./mlruns:/mlflow/mlruns
       - ./mlartifacts:/mlartifacts
