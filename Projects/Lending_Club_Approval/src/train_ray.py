@@ -22,7 +22,7 @@ import mlflow.sklearn
 import mlflow.xgboost
 import mlflow.tensorflow
 import ray
-from ray import tune
+from ray import tune, train
 from ray.tune.schedulers import ASHAScheduler
 from ray.air.integrations.mlflow import MLflowLoggerCallback
 
@@ -123,7 +123,7 @@ def train_lending_model(config, data=None):
         recall = recall_score(y_test, y_pred, zero_division=0)
         f1 = f1_score(y_test, y_pred, zero_division=0)
         
-        tune.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
+        train.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
 
     elif model_type == "decision_tree":
         mlflow.sklearn.autolog()
@@ -145,7 +145,7 @@ def train_lending_model(config, data=None):
         recall = recall_score(y_test, y_pred, zero_division=0)
         f1 = f1_score(y_test, y_pred, zero_division=0)
         
-        tune.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
+        train.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
 
     elif model_type == "random_forest":
         mlflow.sklearn.autolog()
@@ -168,7 +168,7 @@ def train_lending_model(config, data=None):
         recall = recall_score(y_test, y_pred, zero_division=0)
         f1 = f1_score(y_test, y_pred, zero_division=0)
         
-        tune.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
+        train.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
 
     elif model_type == "xgboost":
         mlflow.xgboost.autolog()
@@ -184,7 +184,7 @@ def train_lending_model(config, data=None):
         recall = recall_score(y_test, y_pred, zero_division=0)
         f1 = f1_score(y_test, y_pred, zero_division=0)
         
-        tune.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
+        train.report({"accuracy": acc, "loss": loss, "precision": precision, "recall": recall, "f1": f1})
 
     elif model_type == "keras":
         mlflow.tensorflow.autolog()
@@ -205,7 +205,7 @@ def train_lending_model(config, data=None):
             X_train, y_train, epochs=config.get("epochs", 10), 
             batch_size=64, validation_data=(X_test, y_test), verbose=0,
             callbacks=[keras.callbacks.LambdaCallback(
-                on_epoch_end=lambda e, l: tune.report({
+                on_epoch_end=lambda e, l: train.report({
                     "loss": l["val_loss"], 
                     "accuracy": l["val_accuracy"],
                     "precision": l.get("val_precision", 0),
@@ -355,7 +355,7 @@ if __name__ == "__main__":
         num_samples=5, 
         scheduler=ASHAScheduler(metric="loss", mode="min"),
         resources_per_trial=tune_resources,
-        callbacks=[MLflowLoggerCallback(experiment_name="Lending_Club_Cloud_Ready", save_artifact=True)]
+        callbacks=[MLflowLoggerCallback(experiment_name="Lending_Club_Cloud_Ready", save_artifact=False)]
     )
     
     best_config = analysis.get_best_config(metric="loss", mode="min")
