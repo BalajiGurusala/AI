@@ -91,6 +91,13 @@ services:
       - ./requirements.txt:/opt/airflow/requirements.txt
       # Mount models to save artifacts accessible to host/FastAPI
       - ./models:/opt/airflow/models 
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
     command: scheduler
 
   fastapi-app:
