@@ -3,7 +3,7 @@ import boto3
 from io import BytesIO
 import os
 
-DEFAULT_BUCKET = "IK-lending-club-bucket"
+DEFAULT_BUCKET = "ik-lending-club-bucket"
 DEFAULT_FILE_KEY = "lending_club_loans.csv"
 
 def load_data(bucket_name: str = DEFAULT_BUCKET, file_key: str = DEFAULT_FILE_KEY) -> pd.DataFrame:
