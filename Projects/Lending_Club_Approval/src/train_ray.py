@@ -355,7 +355,7 @@ if __name__ == "__main__":
         num_samples=5, 
         scheduler=ASHAScheduler(metric="loss", mode="min"),
         resources_per_trial=tune_resources,
-        callbacks=[MLflowLoggerCallback(experiment_name="Lending_Club_Cloud_Ready", save_artifact=False)]
+        callbacks=[]
     )
     
     best_config = analysis.get_best_config(metric="loss", mode="min")
