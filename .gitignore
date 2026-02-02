@@ -6,3 +6,13 @@
 Exercises/
 Envs/
 Projects/NN_Mini_Project/
+.github/
+Projects/Lending_Club_Approval/notebooks
+
+#Ignore virtual env
+Projects/Lending_Club_Approval/.venv
+
+# Ignore Feast Databases
+*.db
+.feast-test-server
+Projects/Lending_Club_Approval/feature_repo/data/online_store.db
