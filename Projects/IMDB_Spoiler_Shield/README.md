@@ -8,36 +8,36 @@ The system is designed to be modular, scalable, and cloud-agnostic (optimized fo
 
 ```mermaid
 graph TD
-    Data[Raw Data (S3/Drive)] --> Ingest(Data Ingestion)
-    Ingest --> Preprocess(Text Preprocessing)
-    Ingest --> FeatureEng(Feature Engineering)
+    Data["Raw Data (S3/Drive)"] --> Ingest("Data Ingestion")
+    Ingest --> Preprocess("Text Preprocessing")
+    Ingest --> FeatureEng("Feature Engineering")
     
     subgraph "Feature Store (Feast)"
-        FeatureEng --> Offline[Offline Store (S3/Parquet)]
-        FeatureEng --> Online[Online Store (Redis)]
+        FeatureEng --> Offline["Offline Store (S3/Parquet)"]
+        FeatureEng --> Online["Online Store (Redis)"]
     end
     
     subgraph "Training Pipeline (Airflow)"
-        Preprocess --> Baseline[Train Baseline (LogReg)]
-        Preprocess --> BERT[Train BERT (Ray/Distributed)]
+        Preprocess --> Baseline["Train Baseline (LogReg)"]
+        Preprocess --> BERT["Train BERT (Ray/Distributed)"]
         
-        Offline --> CreateDS(Create Feast Dataset)
+        Offline --> CreateDS("Create Feast Dataset")
         Preprocess --> CreateDS
-        CreateDS --> Advanced[Train Advanced (XGBoost/NN)]
+        CreateDS --> Advanced["Train Advanced (XGBoost/NN)"]
         
-        Baseline --> Eval(Evaluation / Drift Detection)
-        BERT --> Compare(Model Comparison)
+        Baseline --> Eval("Evaluation / Drift Detection")
+        BERT --> Compare("Model Comparison")
         Advanced --> Compare
     end
     
     subgraph "Artifact Store"
-        Compare --> S3Artifacts[S3 Bucket (Models/Metrics)]
-        Eval --> S3Reports[S3 Bucket (Evidently Reports)]
+        Compare --> S3Artifacts["S3 Bucket (Models/Metrics)"]
+        Eval --> S3Reports["S3 Bucket (Evidently Reports)"]
     end
     
     subgraph "Serving (FastAPI)"
-        S3Artifacts --> LoadModel(Load Best Model)
-        Online --> Enrich(Enrich Features)
+        S3Artifacts --> LoadModel("Load Best Model")
+        Online --> Enrich("Enrich Features")
         UserRequest --> Enrich --> Predict --> Response
     end
 ```
