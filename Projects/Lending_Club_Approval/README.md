@@ -11,6 +11,10 @@ A production-grade MLOps system for real-time credit risk assessment. This proje
 ![Airflow](https://img.shields.io/badge/Orchestration-Airflow-red)
 ![Docker](https://img.shields.io/badge/Deployment-Docker-blue)
 
+##Overview Video
+
+https://drive.google.com/file/d/1RAaVF-X9JN8CT3bUdmTxCHuDdqvQRTfA/view?usp=sharing
+
 ## 📖 Project Overview
 
 This system predicts the probability of loan default for Lending Club applicants. Unlike simple notebook experiments, this project implements a **robust, scalable MLOps architecture** designed for real-world deployment. It solves key challenges such as training-serving skew, model versioning, and automated retraining.
