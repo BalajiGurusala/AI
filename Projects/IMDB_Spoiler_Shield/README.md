@@ -1,10 +1,10 @@
 # IMDB Spoiler Shield 🛡️🎬
 
-A production-grade MLOps system to detect spoilers in movie reviews. This project demonstrates a complete end-to-end machine learning lifecycle, from data ingestion and feature engineering to distributed training and real-time serving, built on a robust cloud-native stack.
+A production-grade MLOps system to detect spoilers in movie reviews. This project demonstrates a complete end-to-end machine learning lifecycle, from data ingestion and feature engineering to distributed training, real-time serving, and persistent monitoring.
 
 ## 🏗️ Architecture
 
-The system is designed to be modular, scalable, and cloud-agnostic (optimized for AWS EC2 & S3).
+The system is modular, scalable, and cloud-native (optimized for AWS EC2 & S3).
 
 ```mermaid
 graph TD
@@ -25,8 +25,8 @@ graph TD
         Preprocess --> CreateDS
         CreateDS --> Advanced["Train Advanced (XGBoost/NN)"]
         
-        Baseline --> Eval["Evaluation / Drift Detection"]
-        Baseline --> Compare["Model Comparison"]
+        Baseline --> Eval("Baseline Evaluation")
+        Baseline --> Compare("Model Comparison")
         BERT --> Compare
         Advanced --> Compare
     end
@@ -34,6 +34,11 @@ graph TD
     subgraph "Artifact Store"
         Compare --> S3Artifacts["S3 Bucket (Models/Metrics)"]
         Eval --> S3Reports["S3 Bucket (Evidently Reports)"]
+    end
+
+    subgraph "Monitoring & Drift"
+        Compare --> Sim("Drift Simulator")
+        Sim --> Dash["Evidently UI Dashboard"]
     end
     
     subgraph "Serving (FastAPI)"
@@ -45,53 +50,91 @@ graph TD
 
 ### 🚀 Key Components
 
-*   **Orchestration:** **Apache Airflow** manages the DAG execution, ensuring dependencies between ingestion, feature engineering, and model training are respected.
-*   **Feature Store:** **Feast** manages features (`duration`, `rating`, `sentiment`) consistency.
-    *   *Offline:* Parquet files on S3 for training point-in-time joins.
-    *   *Online:* Redis for low-latency retrieval during inference.
-*   **Experiment Tracking:** **MLflow** logs parameters, metrics, and artifacts for every training run.
-*   **Distributed Training:** **Ray Train & Ray Tune** enable scaling BERT and DistilBERT fine-tuning across multiple GPUs (EC2 A100s) or local accelerators (Mac Metal/MPS).
-*   **Monitoring:** **Evidently AI** detects data drift and model performance degradation.
-*   **Storage:** **AWS S3** acts as the central data lake and artifact repository.
-*   **Serving:** **FastAPI** provides a high-performance REST API for real-time predictions.
+*   **Orchestration:** **Apache Airflow** manages the DAG execution and task dependencies.
+*   **Feature Store:** **Feast** ensures feature consistency across training and inference.
+*   **Distributed Training:** **Ray Train & Tune** enable scaling BERT fine-tuning across multiple GPUs (EC2 A100s) or local accelerators (Mac MPS).
+*   **Monitoring Dashboard:** **Evidently UI** provides a persistent interface to track data drift, quality, and concept drift over time.
+*   **Drift Simulation:** A dedicated script simulates production failures (data quality issues and adversarial attacks) to test the monitoring stack.
+*   **Serving:** **FastAPI** exposes a real-time prediction endpoint enriched by Feast.
 
 ---
 
 ## 🧠 Models
 
-We employ a multi-tier modeling strategy to balance speed and accuracy:
+1.  **Baseline (Logistic Regression):** Fast, TF-IDF based, uses class weights for imbalance.
+2.  **Advanced NLP (BERT & DistilBERT):** Context-aware, fine-tuned using PyTorch and Ray on 30% stratified data.
+3.  **Hybrid Advanced (XGBoost & NN):** Combines SBERT Embeddings with Feast Metadata (Duration, Rating, etc.) for high-precision detection.
 
-1.  **Baseline Model (Logistic Regression):**
-    *   **Input:** TF-IDF vectors.
-    *   **Optimization:** Class weights applied to handle the 75/25 imbalance.
-    *   **Use Case:** Quick benchmarks and interpretability.
+---
 
-2.  **Advanced NLP (BERT-base & DistilBERT):**
-    *   **Input:** Raw text (Tokenized).
-    *   **Training:** Fine-tuned using **PyTorch** and **Ray**.
-    *   **Strategy:** Trained on a stratified 30% subsample. Supports hardware acceleration on Mac (MPS) and EC2 (CUDA).
+## 📊 Monitoring & Drift Simulation
 
-3.  **Hybrid Advanced Models (XGBoost & Neural Networks):**
-    *   **Input:** Hybrid features combining **Sentence Embeddings** (SBERT) + **Feast Features** (Movie metadata).
-    *   **Training:** Leverages Feast for point-in-time historical feature retrieval.
+Since production drift takes time to occur naturally, we provide a simulation tool to populate the Evidently dashboard.
+
+### 1. Start the Dashboard
+```bash
+docker-compose up -d evidently-ui
+# Visit: http://localhost:8001
+```
+
+### 2. Run Drift Simulation
+The simulator generates three batches of data: **Normal**, **Data Quality Issues** (broken feature pipeline), and **Concept Drift** (adversarial spoiler attack).
+```bash
+python src/simulate_drift.py
+```
+
+---
+
+## 🛠️ Setup & Installation
+
+### 1. Environment Configuration
+Create a `.env` file:
+```bash
+AIRFLOW_UID=502
+S3_BUCKET=your-s3-bucket-name
+AWS_ACCESS_KEY_ID=your_key
+AWS_SECRET_ACCESS_KEY=your_secret
+MLFLOW_TRACKING_URI=http://mlflow-server:5000
+```
+
+### 2. Deployment
+```bash
+# Start all services
+docker-compose up -d --build
+```
 
 ---
 
 ## 🏃‍♂️ Usage
 
-### Running the Pipeline (Airflow)
-1.  Access Airflow UI at `http://localhost:8080`.
-2.  Trigger the `imdb_spoiler_pipeline` DAG.
-3.  Watch the tasks execute:
-    *   `create_feast_dataset`: Generates training data from the Feature Store.
-    *   `train_bert_model`: Launches distributed training for both BERT and DistilBERT.
-    *   `compare_models`: Evaluates all models (Baseline, Advanced, BERT) to select the winner.
+### Airflow Pipeline
+Access `http://localhost:8080` to run the `imdb_spoiler_pipeline` DAG. It automates:
+*   Feature materialization.
+*   Training data generation via Feast.
+*   Parallel model training (Baseline vs BERT vs Hybrid).
+*   Metric comparison and artifact promotion.
 
 ### Inference API
-The API loads the best model from S3 on startup and enriches requests with real-time features from Redis.
-
 ```bash
+# Test Prediction
 curl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
-     -d '{"movie_id": "tt0111161", "review_text": "Bruce Willis was a ghost the whole time!"}'
+     -d '{"movie_id": "tt0111161", "review_text": "He was a ghost the whole time!"}'
+```
+
+---
+
+## 📂 Project Structure
+
+```
+├── app/                  # FastAPI serving layer
+├── dags/                 # Airflow DAGs
+├── feature_repo/         # Feast registry and definitions
+├── src/                  # Core logic
+│   ├── simulate_drift.py # Drift simulation tool
+│   ├── train_bert.py     # Ray/Distributed BERT training
+│   ├── train_advanced.py # Hybrid models (XGB/NN + Feast)
+│   ├── ...
+├── docker-compose.yml
+└── README.md
 ```

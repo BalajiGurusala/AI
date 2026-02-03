@@ -143,6 +143,17 @@ services:
       - mlflow-server
       - redis
 
+  evidently-ui:
+    image: evidently/base:0.4.19
+    container_name: evidently-ui
+    expose:
+      - "8000"
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./evidently_workspace:/app/workspace
+    command: ui --workspace /app/workspace --host 0.0.0.0 --port 8000 --demo-project
+
 volumes:
   postgres-db-volume:
   mlflow-artifacts:
