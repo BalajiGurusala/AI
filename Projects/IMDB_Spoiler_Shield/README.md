@@ -25,8 +25,9 @@ graph TD
         Preprocess --> CreateDS
         CreateDS --> Advanced["Train Advanced (XGBoost/NN)"]
         
-        Baseline --> Eval("Evaluation / Drift Detection")
-        BERT --> Compare("Model Comparison")
+        Baseline --> Eval["Evaluation / Drift Detection"]
+        Baseline --> Compare["Model Comparison"]
+        BERT --> Compare
         Advanced --> Compare
     end
     
@@ -49,7 +50,7 @@ graph TD
     *   *Offline:* Parquet files on S3 for training point-in-time joins.
     *   *Online:* Redis for low-latency retrieval during inference.
 *   **Experiment Tracking:** **MLflow** logs parameters, metrics, and artifacts for every training run.
-*   **Distributed Training:** **Ray Train & Ray Tune** enable scaling BERT fine-tuning across multiple GPUs (EC2 A100s) or local accelerators (Mac Metal/MPS).
+*   **Distributed Training:** **Ray Train & Ray Tune** enable scaling BERT and DistilBERT fine-tuning across multiple GPUs (EC2 A100s) or local accelerators (Mac Metal/MPS).
 *   **Monitoring:** **Evidently AI** detects data drift and model performance degradation.
 *   **Storage:** **AWS S3** acts as the central data lake and artifact repository.
 *   **Serving:** **FastAPI** provides a high-performance REST API for real-time predictions.
@@ -65,54 +66,14 @@ We employ a multi-tier modeling strategy to balance speed and accuracy:
     *   **Optimization:** Class weights applied to handle the 75/25 imbalance.
     *   **Use Case:** Quick benchmarks and interpretability.
 
-2.  **Advanced NLP (DistilBERT):**
+2.  **Advanced NLP (BERT-base & DistilBERT):**
     *   **Input:** Raw text (Tokenized).
-    *   **Training:** Fine-tuned `distilbert-base-uncased` using **PyTorch** and **Ray**.
-    *   **Strategy:** Trained on a stratified 30% subsample to optimize compute/performance trade-off. Supports FSDP/DDP for multi-GPU setups.
+    *   **Training:** Fine-tuned using **PyTorch** and **Ray**.
+    *   **Strategy:** Trained on a stratified 30% subsample. Supports hardware acceleration on Mac (MPS) and EC2 (CUDA).
 
 3.  **Hybrid Advanced Models (XGBoost & Neural Networks):**
-    *   **Input:** Hybrid features combining **Sentence Embeddings** (SBERT `all-MiniLM-L6-v2`) + **Feast Features** (Movie metadata).
-    *   **Training:** Leverages `scale_pos_weight` for imbalance handling.
-    *   **Use Case:** Captures both semantic meaning and metadata context (e.g., long reviews on short movies are suspicious).
-
----
-
-## 🛠️ Setup & Installation
-
-### Prerequisites
-*   Docker & Docker Compose
-*   Python 3.10+
-*   AWS Account (S3 Bucket access)
-
-### 1. Environment Configuration
-Create a `.env` file in the root directory:
-```bash
-AIRFLOW_UID=502
-S3_BUCKET=your-s3-bucket-name
-AWS_ACCESS_KEY_ID=your_key
-AWS_SECRET_ACCESS_KEY=your_secret
-AWS_DEFAULT_REGION=us-east-1
-MLFLOW_TRACKING_URI=http://mlflow-server:5000
-```
-
-### 2. Local Setup (Mac/Linux)
- The system automatically detects Apple Silicon (MPS) for acceleration.
-
-```bash
-# Install dependencies
-pip install -r requirements.txt
-
-# Start Infrastructure
-docker-compose up -d --build
-```
-
-### 3. EC2 Setup (GPU/NVIDIA)
-For training on A100s or T4s:
-1.  Launch an instance with the Deep Learning AMI.
-2.  Clone the repo.
-3.  Ensure `nvidia-docker` is installed.
-4.  Run `docker-compose up -d`.
-5.  *Note:* The `src/train_bert.py` script automatically detects CUDA and scales workers via Ray.
+    *   **Input:** Hybrid features combining **Sentence Embeddings** (SBERT) + **Feast Features** (Movie metadata).
+    *   **Training:** Leverages Feast for point-in-time historical feature retrieval.
 
 ---
 
@@ -123,61 +84,14 @@ For training on A100s or T4s:
 2.  Trigger the `imdb_spoiler_pipeline` DAG.
 3.  Watch the tasks execute:
     *   `create_feast_dataset`: Generates training data from the Feature Store.
-    *   `train_bert_model`: Launches distributed training.
-    *   `compare_models`: Selects the winner.
-
-### Manual Training
-You can run specific training scripts inside the environment:
-
-```bash
-# Train BERT (Auto-detects GPU/MPS)
-python src/train_bert.py
-
-# Train XGBoost/NN with Feast Features
-python src/create_dataset_with_feast.py
-python src/train_advanced_models.py
-```
+    *   `train_bert_model`: Launches distributed training for both BERT and DistilBERT.
+    *   `compare_models`: Evaluates all models (Baseline, Advanced, BERT) to select the winner.
 
 ### Inference API
-The API loads the best model from S3 on startup.
+The API loads the best model from S3 on startup and enriches requests with real-time features from Redis.
 
 ```bash
-# Start API
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
-
-# Test Prediction
 curl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
      -d '{"movie_id": "tt0111161", "review_text": "Bruce Willis was a ghost the whole time!"}'
-```
-
----
-
-## 📂 Project Structure
-
-```
-├── .github/workflows/    # CI/CD pipelines
-├── app/                  # FastAPI Serving Layer
-│   └── main.py
-├── dags/                 # Airflow DAGs
-│   └── imdb_pipeline.py
-├── data/                 # Local data storage (synced with S3)
-├── docker/               # Dockerfiles
-├── feature_repo/         # Feast Feature Definitions
-│   ├── feature_store.yaml
-│   └── definitions.py
-├── notebooks/            # Exploratory Analysis
-├── src/                  # Core Source Code
-│   ├── compare_models.py
-│   ├── create_dataset_with_feast.py
-│   ├── data_loader.py
-│   ├── evaluate.py
-│   ├── feature_engineering.py
-│   ├── preprocessing.py
-│   ├── train.py
-│   ├── train_advanced_models.py  # XGBoost/NN
-│   └── train_bert.py             # Ray/Distributed BERT
-├── docker-compose.yml
-├── requirements.txt
-└── README.md
 ```
