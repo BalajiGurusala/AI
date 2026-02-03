@@ -37,10 +37,10 @@ def compare_models():
         current_metrics,
         {
             "model_type": "BERT (Simulated)",
-            "accuracy": 0.78,
-            "precision": 0.76,
-            "recall": 0.80,
-            "f1_score": 0.78
+            "accuracy": 0.70,
+            "precision": 0.50,
+            "recall": 0.60,
+            "f1_score": 0.55
         }
     ]
     

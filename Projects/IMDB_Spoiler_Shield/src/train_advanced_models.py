@@ -130,9 +130,9 @@ def main():
     # 1. Load Data (Enriched with Feast Features)
     train_df, test_df = load_enriched_data()
     
-    # Sampling for speed (remove in prod)
-    train_df = train_df.sample(frac=0.1, random_state=42)
-    test_df = test_df.sample(frac=0.1, random_state=42)
+    # Use full dataset
+    # train_df = train_df.sample(frac=0.1, random_state=42)
+    # test_df = test_df.sample(frac=0.1, random_state=42)
     
     y_train = train_df['label']
     y_test = test_df['label']
@@ -168,8 +168,10 @@ def main():
     classes = np.unique(y_train)
     if len(classes) > 1:
         weights = compute_class_weight('balanced', classes=classes, y=y_train)
+        class_weight_dict = {0: weights[0], 1: weights[1]}
     else:
         weights = np.array([1.0, 1.0])
+        class_weight_dict = {0: 1.0, 1: 1.0}
     
     bucket = os.getenv("S3_BUCKET")
     if not os.path.exists("models"):
@@ -211,6 +213,24 @@ def main():
         torch.save(nn_model.state_dict(), "models/nn_feast_model.pt")
         if bucket:
             boto3.client('s3').upload_file("models/nn_feast_model.pt", bucket, "models/nn_model.pt")
+
+    # 5. Logistic Regression with SBERT + Feast (Comparison)
+    with mlflow.start_run(run_name="LogReg_SBERT_Feast"):
+        print("\nTraining LogReg (SBERT + Feast)...")
+        lr_clf = LogisticRegression(class_weight=class_weight_dict, max_iter=1000)
+        lr_clf.fit(X_train_combined, y_train)
+        y_pred = lr_clf.predict(X_test_combined)
+        
+        acc = accuracy_score(y_test, y_pred)
+        f1 = f1_score(y_test, y_pred)
+        print(f"LogReg (SBERT + Feast) - Acc: {acc:.4f}, F1: {f1:.4f}")
+        
+        mlflow.log_metric("accuracy", acc)
+        mlflow.log_metric("f1", f1)
+        
+        joblib.dump(lr_clf, "models/logreg_sbert_feast.joblib")
+        if bucket:
+            boto3.client('s3').upload_file("models/logreg_sbert_feast.joblib", bucket, "models/logreg_sbert.joblib")
 
 if __name__ == "__main__":
     main()

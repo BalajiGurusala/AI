@@ -33,6 +33,14 @@ x-airflow-common:
       condition: service_healthy
     redis:
       condition: service_healthy
+  # Enable GPU support for Airflow containers
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
 
 services:
   postgres:
@@ -142,6 +150,14 @@ services:
     depends_on:
       - mlflow-server
       - redis
+    # Enable GPU for Inference
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
 
   evidently-ui:
     image: evidently/base:0.4.19

@@ -115,8 +115,16 @@ Access `http://localhost:8080` to run the `imdb_spoiler_pipeline` DAG. It automa
 *   Metric comparison and artifact promotion.
 
 ### Inference API
+The API loads the best model from S3 on startup and enriches requests with real-time features from Redis.
+
+#### 🧪 Interactive Testing (Recommended)
+FastAPI provides a built-in **Swagger UI** for interactive testing:
+1. Open your browser to **[http://localhost:8000/docs](http://localhost:8000/docs)**.
+2. Expand the `POST /predict` endpoint and click **"Try it out"**.
+3. Enter a `movie_id` and `review_text` to see the spoiler prediction and Feast-enriched features.
+
+#### 💻 Command Line Testing
 ```bash
-# Test Prediction
 curl -X POST "http://localhost:8000/predict" \
      -H "Content-Type: application/json" \
      -d '{"movie_id": "tt0111161", "review_text": "He was a ghost the whole time!"}'

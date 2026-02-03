@@ -34,7 +34,9 @@ def load_data_dfs(data_dir="data/processed"):
     except:
         return pd.DataFrame({'clean_review': ['test'], 'label': [0]}), pd.DataFrame({'clean_review': ['test'], 'label': [0]})
 
-    train_df = train_df.sample(frac=0.3, random_state=42).reset_index(drop=True)
+    # Use full dataset
+    # train_df = train_df.sample(frac=0.3, random_state=42).reset_index(drop=True)
+    
     train_df['clean_review'] = train_df['clean_review'].fillna('')
     test_df['clean_review'] = test_df['clean_review'].fillna('')
     return train_df, test_df

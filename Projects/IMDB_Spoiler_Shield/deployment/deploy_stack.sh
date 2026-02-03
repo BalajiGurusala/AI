@@ -27,15 +27,17 @@ if [ ! -f .env ]; then
     BUCKET=${BUCKET:-$DEFAULT_BUCKET_NAME}
 
     # IMDB project uses S3_BUCKET env var
+    # Dynamically set AIRFLOW_UID to the current user (usually 1000 on EC2/Ubuntu)
+    CURRENT_UID=$(id -u)
     cat <<EOF > .env
 AWS_ACCESS_KEY_ID=${AWS_KEY}
 AWS_SECRET_ACCESS_KEY=${AWS_SECRET}
 S3_BUCKET=${BUCKET}
-AIRFLOW_UID=50000
+AIRFLOW_UID=${CURRENT_UID}
 _AIRFLOW_WWW_USER_USERNAME=airflow
 _AIRFLOW_WWW_USER_PASSWORD=airflow
 EOF
-    echo "✅ .env file created."
+    echo "✅ .env file created with AIRFLOW_UID=${CURRENT_UID}."
 else
     echo "✅ .env file found. Skipping configuration."
 fi
@@ -44,8 +46,15 @@ fi
 echo "📂 Preparing directories and permissions..."
 # Create necessary directories mapped in docker-compose
 mkdir -p dags src data logs plugins feature_repo models
-# Ensure the Docker 'airflow' user (UID 50000) can write to these
-sudo chown -R 50000:0 logs dags plugins feature_repo data models
+# Ensure the current user can write to these (Docker will map the user)
+# We use the variable we just set or detected
+if [ -f .env ]; then
+    source .env
+fi
+# Fallback if source failed or var empty
+TARGET_UID=${AIRFLOW_UID:-$(id -u)}
+
+sudo chown -R ${TARGET_UID}:0 logs dags plugins feature_repo data models
 sudo chmod -R 775 logs dags plugins feature_repo data models
 
 # 3. Launch Stack
