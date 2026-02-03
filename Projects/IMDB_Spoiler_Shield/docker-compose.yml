@@ -1,5 +1,3 @@
-version: '3.8'
-
 x-airflow-common:
   &airflow-common
   build:
@@ -160,7 +158,9 @@ services:
               capabilities: [gpu]
 
   evidently-ui:
-    image: evidently/base:0.4.19
+    build:
+      context: .
+      dockerfile: docker/Dockerfile
     container_name: evidently-ui
     expose:
       - "8000"
