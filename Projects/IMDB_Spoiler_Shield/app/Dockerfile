@@ -18,8 +18,8 @@ COPY . .
 # This ensures code changes in src/ are reflected immediately if needed
 # However, for a production build, you would COPY ../src /app/src
 
-# Download NLTK data required for preprocessing (stopwords)
-RUN python -m nltk.downloader stopwords
+# NLTK data will be downloaded at runtime by src/preprocessing.py if needed
+# RUN python -m nltk.downloader stopwords
 
 # Expose port
 EXPOSE 8000

@@ -59,7 +59,15 @@ sudo chmod -R 775 logs dags plugins feature_repo data models
 
 # 3. Launch Stack
 echo "🐳 Building and starting containers..."
-docker compose up -d --build
+
+# Check for NVIDIA GPUs
+if command -v nvidia-smi &> /dev/null; then
+    echo "🚀 NVIDIA GPU detected! Using Production GPU configuration."
+    docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+else
+    echo "⚠️  No NVIDIA GPU detected. Using Standard (CPU/Mac) configuration."
+    docker compose up -d --build
+fi
 
 # 4. Health Check
 echo "⏳ Waiting for services to stabilize..."

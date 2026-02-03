@@ -1,0 +1,32 @@
+version: '3.8'
+
+# Production override file for EC2 with NVIDIA GPUs
+# Usage: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+
+x-airflow-common:
+  &airflow-common
+  deploy:
+    resources:
+      reservations:
+        devices:
+          - driver: nvidia
+            count: all
+            capabilities: [gpu]
+
+services:
+  # Enable GPU for Airflow Workers (where Ray training runs)
+  airflow-webserver:
+    <<: *airflow-common
+
+  airflow-scheduler:
+    <<: *airflow-common
+
+  # Enable GPU for Fast API Inference
+  fastapi-app:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
