@@ -4,7 +4,7 @@ from datetime import datetime
 import subprocess
 import json
 import boto3
-from src.data_loader import load_data
+from data_loader import load_data
 
 def convert_duration_to_minutes(duration_str):
     if pd.isna(duration_str) or not isinstance(duration_str, str):
@@ -22,8 +22,7 @@ def convert_duration_to_minutes(duration_str):
     return float(hours * 60 + minutes)
 
 def generate_features(data_dir="data", output_dir="data/processed"):
-    if not os.path.exists(output_dir):
-        os.makedirs(output_dir)
+    os.makedirs(output_dir, exist_ok=True)
 
     bucket = os.getenv("S3_BUCKET")
     reviews_path = os.path.join(data_dir, "IMDB_reviews.json")
@@ -71,7 +70,7 @@ def generate_features(data_dir="data", output_dir="data/processed"):
     df_details['genre'] = df_details['genre'].apply(lambda x: x[0] if isinstance(x, list) and len(x) > 0 else "Unknown")
 
     # Feast timestamps
-    df_details['event_timestamp'] = pd.to_datetime("2020-01-01")
+    df_details['event_timestamp'] = pd.to_datetime(datetime.now())
     df_details['created_timestamp'] = pd.to_datetime(datetime.now())
 
     feature_df = df_details[['movie_id', 'duration_minutes', 'rating', 'genre', 'avg_review_length', 'avg_sentiment_score', 'event_timestamp', 'created_timestamp']]

@@ -1,0 +1,4 @@
+FROM python:3.11-slim
+RUN pip install mlflow==2.14.1 psycopg2-binary boto3
+EXPOSE 5000
+ENTRYPOINT ["mlflow", "server"]

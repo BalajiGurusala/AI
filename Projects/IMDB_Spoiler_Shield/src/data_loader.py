@@ -81,6 +81,8 @@ def load_data(data_dir="data"):
         raise FileNotFoundError("Raw data files missing. Ensure they are in /data or S3.")
 
     print("Loading reviews...")
+    # Use chunking if possible, but for now we load full
+    # For OOM prevention, we will just ensure we don't return the big DF
     with open(reviews_path, 'r') as file:
         reviews_data = [json.loads(line) for line in file]
     df_reviews = pd.DataFrame(reviews_data)
@@ -93,7 +95,14 @@ def load_data(data_dir="data"):
     # Merge
     print("Merging datasets...")
     df_both = pd.merge(df_reviews, df_details, on='movie_id')
-    return df_both
+    
+    # Save merged data to disk instead of returning
+    merged_path = os.path.join(data_dir, "merged_raw.csv")
+    print(f"Saving merged data to {merged_path}...")
+    df_both.to_csv(merged_path, index=False)
+    
+    # Return path string (Tiny memory footprint)
+    return merged_path
 
 if __name__ == "__main__":
     load_data()

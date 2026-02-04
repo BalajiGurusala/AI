@@ -13,6 +13,9 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    # Limit concurrency to prevent OOM on local Docker
+    AIRFLOW__CORE__PARALLELISM: '1'
+    AIRFLOW__CORE__DAG_CONCURRENCY: '1'
     MLFLOW_TRACKING_URI: http://mlflow-server:5000
     # Feast Configuration
     FEAST_USAGE: "False"
@@ -24,21 +27,17 @@ x-airflow-common:
     - ./logs:/opt/airflow/logs
     - ./plugins:/opt/airflow/plugins
     - ./feature_repo:/opt/airflow/feature_repo
+    - ./mlflow_artifacts:/mlflow/artifacts
+    - ./evidently_workspace:/opt/airflow/evidently_workspace
+    - ./models:/opt/airflow/models
   user: "${AIRFLOW_UID:-50000}:0"
+  working_dir: /opt/airflow
   depends_on:
     &airflow-common-depends-on
     postgres:
       condition: service_healthy
     redis:
       condition: service_healthy
-  # Enable GPU support for Airflow containers (Uncomment for EC2/NVIDIA)
-  # deploy:
-  #   resources:
-  #     reservations:
-  #       devices:
-  #         - driver: nvidia
-  #           count: all
-  #           capabilities: [gpu]
 
 services:
   postgres:
@@ -46,9 +45,10 @@ services:
     environment:
       POSTGRES_USER: airflow
       POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_MULTIPLE_DATABASES: airflow,mlflow
     volumes:
       - postgres-db-volume:/var/lib/postgresql/data
+      - ./docker/init-multiple-dbs.sh:/docker-entrypoint-initdb.d/init-multiple-dbs.sh
     healthcheck:
       test: ["CMD", "pg_isready", "-U", "airflow"]
       interval: 5s
@@ -119,9 +119,16 @@ services:
   mlflow-server:
     build:
       context: .
-      dockerfile: docker/Dockerfile
-    entrypoint: /bin/bash
-    command: -c "mlflow server --backend-store-uri postgresql://airflow:airflow@postgres/mlflow --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --port 5000"
+      dockerfile: docker/Dockerfile.mlflow
+    command: 
+      - "--backend-store-uri"
+      - "postgresql://airflow:airflow@postgres/mlflow"
+      - "--default-artifact-root"
+      - "/mlflow/artifacts"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "5000"
     ports:
       - "5001:5000"
     environment:
@@ -129,48 +136,50 @@ services:
     depends_on:
       - postgres
     volumes:
-      - mlflow-artifacts:/mlflow/artifacts
+      - ./mlflow_artifacts:/mlflow/artifacts
 
   fastapi-app:
     build:
       context: ./app
       dockerfile: Dockerfile
-    command: uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
     ports:
       - "8000:8000"
     environment:
-      - MODEL_PATH=/app/data/model.joblib
+      - MODEL_PATH=/opt/airflow/models/model.joblib
       - MLFLOW_TRACKING_URI=http://mlflow-server:5000
     volumes:
-      - ./data:/app/data
-      - ./src:/app/src
-      - ./app:/app
-      - ./feature_repo:/app/feature_repo
+      - ./data:/opt/airflow/data
+      - ./models:/opt/airflow/models
+      - ./src:/opt/airflow/src
+      - ./app:/opt/airflow/app
+      - ./feature_repo:/opt/airflow/feature_repo
+    working_dir: /opt/airflow
     depends_on:
       - mlflow-server
       - redis
-    # Enable GPU for Inference (Uncomment for EC2/NVIDIA)
-    # deploy:
-    #   resources:
-    #     reservations:
-    #       devices:
-    #         - driver: nvidia
-    #           count: all
-    #           capabilities: [gpu]
 
   evidently-ui:
     build:
       context: .
-      dockerfile: docker/Dockerfile
+      dockerfile: docker/Dockerfile.evidently
+    command: 
+      - "--workspace"
+      - "/opt/airflow/evidently_workspace"
+      - "--host"
+      - "0.0.0.0"
+      - "--port"
+      - "8000"
     container_name: evidently-ui
     expose:
       - "8000"
     ports:
       - "8001:8000"
+    working_dir: /opt/airflow
     volumes:
-      - ./evidently_workspace:/app/workspace
-    command: ui --workspace /app/workspace --host 0.0.0.0 --port 8000 --demo-project
+      - ./evidently_workspace:/opt/airflow/evidently_workspace
+      - ./src:/opt/airflow/src
+      - ./data:/opt/airflow/data
 
 volumes:
   postgres-db-volume:
-  mlflow-artifacts:

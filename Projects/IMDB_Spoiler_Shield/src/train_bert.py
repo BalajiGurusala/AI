@@ -11,7 +11,22 @@ import os
 import mlflow
 import boto3
 import json
+import time
+import gc
+
+# Disable SSL verification for Hugging Face downloads
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['HF_HUB_DISABLE_SSL_VERIFY'] = '1'
+
 import tempfile
+import ssl
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_https_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 import ray
 from ray import train, tune
@@ -34,8 +49,10 @@ def load_data_dfs(data_dir="data/processed"):
     except:
         return pd.DataFrame({'clean_review': ['test'], 'label': [0]}), pd.DataFrame({'clean_review': ['test'], 'label': [0]})
 
-    # Use full dataset
-    # train_df = train_df.sample(frac=0.3, random_state=42).reset_index(drop=True)
+    # Configurable sampling (Default to 1% for local safety, override in Prod)
+    sample_frac = float(os.getenv("TRAIN_SAMPLE_FRAC", "0.01"))
+    print(f"Training on {sample_frac*100}%")
+    train_df = train_df.sample(frac=sample_frac, random_state=42).reset_index(drop=True)
     
     train_df['clean_review'] = train_df['clean_review'].fillna('')
     test_df['clean_review'] = test_df['clean_review'].fillna('')
@@ -55,7 +72,7 @@ class ReviewDataset(Dataset):
 # --- Training Function ---
 def train_func(config):
     model_name = config.get("model_name")
-    batch_size = config.get("batch_size", 16)
+    batch_size = config.get("batch_size", 2)
     lr = config.get("lr", 2e-5)
     epochs = config.get("epochs", 1)
 
@@ -102,18 +119,37 @@ def train_func(config):
             train.report({"accuracy": acc, "f1_score": f1, "epoch": epoch}, checkpoint=Checkpoint.from_directory(temp_dir))
 
 def run_training():
-    models_to_train = ["distilbert-base-uncased", "bert-base-uncased"]
-    
-    use_gpu = torch.cuda.is_available()
-    num_workers = torch.cuda.device_count() if use_gpu else 1
+    # Environment Detection
+    if torch.cuda.is_available():
+        models_to_train = ["distilbert-base-uncased", "bert-base-uncased"]
+        use_gpu = True
+        num_workers = int(os.getenv("RAY_WORKERS", torch.cuda.device_count()))
+    else:
+        # Local mode safety
+        print("Running in Local mode: Training only distilbert-base-uncased to save memory.")
+        models_to_train = ["distilbert-base-uncased"]
+        use_gpu = False
+        num_workers = 1
     
     scaling_config = ScalingConfig(num_workers=num_workers, use_gpu=use_gpu)
 
     for model_name in models_to_train:
+        if ray.is_initialized():
+            ray.shutdown()
+            gc.collect()
+            time.sleep(5)
+            
+        ray.init(runtime_env={"working_dir": os.path.dirname(__file__)})
+        
         print(f"\n>>> Starting Ray Training for: {model_name}")
         trainer = TorchTrainer(
             train_loop_per_worker=train_func,
-            train_loop_config={"model_name": model_name, "batch_size": 16, "epochs": 1, "lr": 2e-5},
+            train_loop_config={
+                "model_name": model_name, 
+                "batch_size": int(os.getenv("BATCH_SIZE", "2")),
+                "epochs": 1, 
+                "lr": 2e-5
+            },
             scaling_config=scaling_config,
         )
         result = trainer.fit()

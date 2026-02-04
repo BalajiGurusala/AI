@@ -2,31 +2,46 @@ import pandas as pd
 import numpy as np
 import re
 import nltk
+import ssl
 from nltk.corpus import stopwords
 from sklearn.model_selection import train_test_split
-from src.data_loader import load_data
+from data_loader import load_data
 import os
 
-# Download stopwords
-try:
-    nltk.data.find('corpora/stopwords.zip')
-except LookupError:
-    nltk.download('stopwords')
+# Global variable for lazy loading
+STOP_WORDS = None
 
-def get_stop_words():
-    stop_words = set(stopwords.words('english'))
-    # Custom stop words from the notebook
-    custom_stop_words = [
-        '@', "'", '.', '"', '/', '!', ',', "'ve", "...", "n't", '$', "'s", 
-        '"', "''", '..', '&', '*', ';', '”', '``', ':', '#', '!', '-', 
-        '?', '%', "'d", "'m", '+', '++'
-    ]
-    stop_words.update(custom_stop_words)
-    return stop_words
-
-STOP_WORDS = get_stop_words()
+def ensure_stopwords():
+    global STOP_WORDS
+    if STOP_WORDS is None:
+        try:
+            nltk.data.find('corpora/stopwords.zip')
+        except LookupError:
+            print("Downloading NLTK stopwords...")
+            # SSL Fix for Docker/Corporate networks
+            try:
+                _create_unverified_https_context = ssl._create_unverified_context
+            except AttributeError:
+                pass
+            else:
+                ssl._create_default_https_context = _create_unverified_https_context
+            
+            nltk.download('stopwords')
+        
+        stop_words = set(stopwords.words('english'))
+        # Custom stop words from the notebook
+        custom_stop_words = [
+            '@', "'", '.', '"', '/', '!', ',', "'ve", "...", "n't", '$', "'s", 
+            '"', "''", '..', '&', '*', ';', '”', '``', ':', '#', '!', '-', 
+            '?', '%', "'d", "'m", '+', '++'
+        ]
+        stop_words.update(custom_stop_words)
+        STOP_WORDS = stop_words
 
 def clean_text(text):
+    # Ensure stopwords are loaded
+    ensure_stopwords()
+    
     # Basic cleaning
     text = str(text).lower()
     text = re.sub(r'<.*?>', '', text) # Remove HTML tags
@@ -46,7 +61,10 @@ def preprocess_data(data_dir="data", output_dir="data/processed"):
     if not os.path.exists(output_dir):
         os.makedirs(output_dir)
 
-    df = load_data(data_dir)
+    # load_data now returns a PATH, not a dataframe
+    merged_path = load_data(data_dir)
+    print(f"Loading merged data from {merged_path}...")
+    df = pd.read_csv(merged_path)
     
     # Simple sampling for demonstration if dataset is huge.
     # In production/EC2 with S3, we might want to use the full dataset.

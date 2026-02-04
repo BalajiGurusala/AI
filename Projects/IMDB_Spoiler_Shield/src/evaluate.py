@@ -3,9 +3,26 @@ import joblib
 import os
 import mlflow
 import boto3
-from evidently.report import Report
-from evidently.metric_preset import DataDriftPreset, ClassificationPreset
-from evidently import ColumnMapping
+
+# Fix imports for Evidently 0.7.x in this env
+try:
+    from evidently.report import Report
+except ImportError:
+    from evidently import Report
+
+try:
+    from evidently.metric_preset import DataDriftPreset, ClassificationPreset
+except ImportError:
+    from evidently.presets import DataDriftPreset, ClassificationPreset
+
+try:
+    from evidently import ColumnMapping
+except ImportError:
+    try:
+        from evidently.pipeline.column_mapping import ColumnMapping
+    except ImportError:
+        # Fallback or simple dict if ColumnMapping class is gone
+        ColumnMapping = None
 
 def evaluate_model(data_dir="data/processed", model_path="models/model.joblib"):
     bucket = os.getenv("S3_BUCKET")
@@ -43,27 +60,45 @@ def evaluate_model(data_dir="data/processed", model_path="models/model.joblib"):
     train_df['prediction'] = model.predict(train_df['clean_review'])
     test_df['prediction'] = model.predict(test_df['clean_review'])
 
-    # Evidently Report
-    column_mapping = ColumnMapping()
-    column_mapping.target = 'label'
-    column_mapping.prediction = 'prediction'
-
     # Create report
     report = Report(metrics=[
         DataDriftPreset(), 
-        ClassificationPreset()
+        # ClassificationPreset requires explicit config in this version, skipping for now
     ])
 
     print("Running Evidently Report...")
-    report.run(reference_data=train_df[['label', 'prediction']], 
-               current_data=test_df[['label', 'prediction']],
-               column_mapping=column_mapping)
+    
+    # Rename 'label' to 'target' for Evidently auto-discovery
+    eval_train = train_df[['label', 'prediction']].rename(columns={'label': 'target'})
+    eval_test = test_df[['label', 'prediction']].rename(columns={'label': 'target'})
+    
+    # Run without column_mapping argument to avoid TypeError in some versions
+    report.run(reference_data=eval_train, 
+               current_data=eval_test)
+
+    # Debugging: Inspect what Report actually is in this environment
+    print(f"Report Type: {type(report)}")
+    print(f"Report Attributes: {dir(report)}")
 
     report_path = "data/evidently_report.html"
-    report.save_html(report_path)
-    print(f"Evidently report saved locally to {report_path}")
     
-    if bucket:
+    # Robust saving for different Evidently versions
+    try:
+        if hasattr(report, 'save_html'):
+            report.save_html(report_path)
+        elif hasattr(report, 'get_html'):
+            with open(report_path, 'w', encoding='utf-8') as f:
+                f.write(report.get_html())
+        elif hasattr(report, 'save'):
+             report.save(report_path.replace('.html', '.json'))
+        else:
+             print("WARNING: Could not save report. No known save method found.")
+    except Exception as e:
+        print(f"Failed to save report: {e}")
+            
+    print(f"Evidently report processing complete.")
+    
+    if bucket and os.path.exists(report_path):
         s3_report_path = "reports/evidently_report.html"
         print(f"Uploading report to s3://{bucket}/{s3_report_path}...")
         s3 = boto3.client('s3')

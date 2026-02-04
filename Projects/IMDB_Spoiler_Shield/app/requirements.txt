@@ -1,9 +1,14 @@
 fastapi
 uvicorn
-scikit-learn
 pandas
+scikit-learn
 joblib
-nltk
-pydantic
-feast
+boto3
+feast==0.38.0
 redis
+pydantic
+nltk
+evidently>=0.4.0
+# MLFLOW REMOVED to resolve Protobuf conflict
+protobuf<5.0.0,>=4.24.0
+google-api-core>=2.19.0

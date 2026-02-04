@@ -24,16 +24,16 @@ xgboost
 pyarrow
 
 # MLOps & Infrastructure
-# Pin Flask to prevent Airflow 2.10 breakage (JSONEncoder issue)
-Flask<2.3
 mlflow==2.14.1
-# apache-airflow  <-- Use Docker for Airflow
 evidently>=0.4.0
-feast
+feast==0.38.0
 redis
 s3fs
 boto3
 psycopg2-binary
+# Protobuf is handled by the mlflow/feast pins
+protobuf<5.0.0,>=4.24.0
+google-api-core>=2.19.0
 
 # Utilities
 nltk

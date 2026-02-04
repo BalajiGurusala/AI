@@ -1,0 +1,4 @@
+FROM python:3.11-slim
+RUN pip install evidently>=0.4.0 pandas numpy
+EXPOSE 8000
+ENTRYPOINT ["evidently", "ui"]

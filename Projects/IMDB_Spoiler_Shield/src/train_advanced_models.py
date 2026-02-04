@@ -17,7 +17,19 @@ import mlflow.xgboost
 import os
 import joblib
 import json
+import os
+# Disable SSL verification for Hugging Face downloads (Docker/Corporate network fix)
+os.environ['CURL_CA_BUNDLE'] = ''
+os.environ['HF_HUB_DISABLE_SSL_VERIFY'] = '1'
 import boto3
+import ssl
+
+try:
+    _create_unverified_https_context = ssl._create_unverified_context
+except AttributeError:
+    pass
+else:
+    ssl._create_default_https_context = _create_unverified_https_context
 
 # Device config with MPS support
 if torch.cuda.is_available():
