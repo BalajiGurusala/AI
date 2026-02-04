@@ -120,7 +120,8 @@ services:
     build:
       context: .
       dockerfile: docker/Dockerfile
-    command: mlflow server --backend-store-uri postgresql://airflow:airflow@postgres/mlflow --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --port 5000
+    entrypoint: /bin/bash
+    command: -c "mlflow server --backend-store-uri postgresql://airflow:airflow@postgres/mlflow --default-artifact-root /mlflow/artifacts --host 0.0.0.0 --port 5000"
     ports:
       - "5001:5000"
     environment:

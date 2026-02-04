@@ -1,0 +1,53 @@
+[2026-02-04T00:05:26.848+0000] {manager.py:483} INFO - Processing files using up to 2 processes at a time 
+[2026-02-04T00:05:26.848+0000] {manager.py:484} INFO - Process each file at most once every 30 seconds
+[2026-02-04T00:05:26.848+0000] {manager.py:485} INFO - Checking for new files in /opt/airflow/dags every 300 seconds
+[2026-02-04T00:05:26.848+0000] {manager.py:821} INFO - Searching for files in /opt/airflow/dags
+[2026-02-04T00:05:26.849+0000] {manager.py:824} INFO - There are 1 files in /opt/airflow/dags
+[2026-02-04T00:05:26.891+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                             PID  Runtime      # DAGs    # Errors  Last Runtime    Last Run      Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  ----------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py    171  0.01s             0           0                                                   0
+================================================================================
+[2026-02-04T00:05:56.934+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run               Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  -------------------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py                           0           1  1.80s           2026-02-04T00:05:28                       3
+================================================================================
+[2026-02-04T00:06:26.997+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run               Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  -------------------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py                           0           1  0.77s           2026-02-04T00:05:59                       5
+================================================================================
+[2026-02-04T00:06:57.124+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run               Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  -------------------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py                           0           1  0.81s           2026-02-04T00:06:30                       5
+================================================================================
+[2026-02-04T00:07:27.214+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run               Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  -------------------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py                           0           1  0.76s           2026-02-04T00:07:01                       5
+================================================================================
+[2026-02-04T00:07:58.041+0000] {manager.py:997} INFO - 
+================================================================================
+DAG File Processing Stats
+
+File Path                           PID    Runtime      # DAGs    # Errors  Last Runtime    Last Run               Last # of DB Queries
+----------------------------------  -----  ---------  --------  ----------  --------------  -------------------  ----------------------
+/opt/airflow/dags/imdb_pipeline.py                           0           1  0.64s           2026-02-04T00:07:32                       5
+================================================================================
