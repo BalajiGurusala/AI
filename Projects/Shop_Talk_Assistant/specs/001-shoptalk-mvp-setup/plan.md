@@ -1,11 +1,11 @@
 # Implementation Plan: ShopTalk AI Assistant
 
-**Branch**: `feature/001-shoptalk-mvp-setup` | **Date**: 2025-02-08 | **Spec**: [requirements.md](.specify/memory/requirements.md)  
+**Branch**: `main` (or `001-shoptalk-mvp-setup`) | **Date**: 2025-02-08 | **Spec**: [requirements.md](.specify/memory/requirements.md)  
 **Input**: Feature specification from `.specify/memory/requirements.md`
 
 ## Summary
 
-ShopTalk is an AI shopping assistant with voice interaction, hybrid (semantic + keyword) product search, and RAG over the Amazon Berkeley Objects (ABO) dataset. Primary technical approach: Streamlit frontend, FastAPI backend, LangChain orchestration, ChromaDB/OpenSearch for vectors, Whisper STT, ElevenLabs/gTTS TTS; fine-tuning and image captioning on Kaggle; MLOps via Airflow, MLflow, Ray Tune, Evidently AI, and Grafana.
+ShopTalk is an AI shopping assistant with **text-based chat as primary** and **voice as secondary/optional**; the app must be fully functional without a microphone. Hybrid (semantic + keyword) product search and RAG over the Amazon Berkeley Objects (ABO) dataset. Technical approach: Streamlit frontend, FastAPI backend, LangChain orchestration, ChromaDB/OpenSearch for vectors; optional Whisper STT and ElevenLabs/gTTS TTS; fine-tuning and image captioning on Kaggle; MLOps via Airflow, MLflow, Ray Tune, Evidently AI, and Grafana.
 
 ## Technical Context
 

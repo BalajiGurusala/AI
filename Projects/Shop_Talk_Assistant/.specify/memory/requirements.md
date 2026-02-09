@@ -12,6 +12,15 @@
 - Q: While listening, searching, or generating, should the UI show explicit status feedback? → A: Show simple status messages (e.g. "Listening…", "Searching…", "Generating…") in the chat area or near the mic.
 
 ## 1. Core Features
+### Core Features
+**Multi-Modal Chat Interface (Primary):**
+    * Standard text-based chat (like ChatGPT).
+    * Users can type queries ("red shirt under $50").
+    * System returns text responses + product cards.
+**Voice Interaction (Secondary/Optional):**
+    * "Mic" button populates the text input field (Speech-to-Text).
+    * Optional "Read Aloud" button for responses (Text-to-Speech).
+    * *Constraint:* The app must be fully functional without a microphone.
 * **User model:** Multi-user, anonymous (no login). Each browser/session is isolated.
 * **Hybrid Search:** Must support semantic search ("red shirt") AND keyword filtering ("under $50").
 * **RAG Pipeline:** Retrieve product metadata + Generate natural language response.

@@ -14,11 +14,17 @@
     * Download Model -> Generate Embeddings -> Upsert to **ChromaDB**.
 
 ### B. Inference Loop (MacBook Local / AWS EC2)
-1.  **Voice Input:** User Microphone -> `Audio Data`.
-2.  **Transcribe:** `Audio` -> **Whisper (Base)** -> `Query Text`.
-3.  **Retrieve:** `Query Text` -> **Hybrid Search** (Keyword + Semantic) -> `Top-K Documents`.
-4.  **Generate:** `Top-K` + `Prompt` -> **GPT-4o/Llama3** -> `Natural Response`.
-5.  **Speak:** `Response` -> **ElevenLabs/gTTS** -> `Audio Output`.
+1.  **User Input:**
+    * **Text Mode (Primary):** Direct string input.
+    * **Voice Mode (Secondary):** Audio -> **Whisper** -> Text String.
+2.  **Unified Processor:**
+    * `Text String` (from either source) -> **Hybrid Search** (Keyword + Semantic).
+    * *Result:* `Top-K Documents` (Context).
+3.  **Generation:**
+    * `Context` + `User Query` -> **LLM (GPT-4o)** -> `Natural Response`.
+4.  **Output:**
+    * **Display:** `Natural Response` (Text).
+    * **Playback (Optional):** `Natural Response` -> **TTS (ElevenLabs/gTTS)** -> Audio.
 
 ### C. Monitoring & Feedback (MLOps)
 * **Evidently AI:** Asynchronously checks `Query Embeddings` for drift vs. `Training Data`.

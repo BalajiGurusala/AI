@@ -56,7 +56,17 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ---
 
-## 6. Hybrid Search (Semantic + Keyword)
+## 6. Multi-Modal Interface (Text vs Voice)
+
+**Decision**: Text-based chat is primary; voice is secondary/optional. The app must be fully functional without a microphone. Mic button populates the text input (STT); optional "Read Aloud" for TTS.
+
+**Rationale**: Requirements state standard text chat (like ChatGPT) with typed queries as primary; voice adds accessibility and demo value but is not required for core flow.
+
+**Alternatives considered**: Voice-first (rejected per spec); voice-only (rejected – text required).
+
+---
+
+## 7. Hybrid Search (Semantic + Keyword)
 
 **Decision**: Implement hybrid as: (1) semantic search via vector similarity (ChromaDB/OpenSearch); (2) keyword filters (e.g., price, category) applied in application or via metadata filter. Combine into single ranked result set.
 
@@ -66,7 +76,7 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ---
 
-## 7. Session and Chat State
+## 8. Session and Chat State
 
 **Decision**: In-memory only (Streamlit session state / FastAPI request-scoped or in-memory store). No DB for chat; optional anonymized export of 50 responses for qualitative evaluation.
 
@@ -76,7 +86,7 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ---
 
-## 8. Error and Empty-State Messaging
+## 9. Error and Empty-State Messaging
 
 **Decision**: STT failure: show "Couldn't hear that—try again" in chat, allow retry. Empty search: show "No products match that. Try different keywords or filters." (optional TTS). RAG/LLM/TTS failure: show "Something went wrong. Please try again.", no TTS for error. Status messages: "Listening…", "Searching…", "Generating…" in chat or near mic.
 
@@ -84,7 +94,7 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ---
 
-## 9. Model Loading and Consistency
+## 10. Model Loading and Consistency
 
 **Decision**: Load all models (embedding, Whisper, LLM, TTS) once at app startup (global/singleton). Inference uses same tokenizers/transformers as training pipeline for embedding model.
 
@@ -94,7 +104,7 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ---
 
-## 10. MLOps Scope for MVP
+## 11. MLOps Scope for MVP
 
 **Decision**: Plan and contracts include Airflow, MLflow, Ray Tune, Evidently AI, Grafana per constitution; implementation order can phase MLOps after core voice+RAG pipeline. Docker Compose for local dev with FastAPI, Streamlit, ChromaDB (and optionally Airflow/MLflow).
 
