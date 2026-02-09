@@ -1,0 +1,177 @@
+openapi: 3.0.3
+info:
+  title: ShopTalk Backend API
+  description: FastAPI backend for voice-driven product search and RAG responses.
+  version: 0.1.0
+
+servers:
+  - url: http://localhost:8000
+    description: Local dev
+
+paths:
+  /health:
+    get:
+      summary: Health check
+      operationId: getHealth
+      responses:
+        '200':
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  embedding_loaded:
+                    type: boolean
+                  chroma_connected:
+                    type: boolean
+
+  /api/v1/voice/query:
+    post:
+      summary: Submit voice audio and get transcript + RAG response + optional TTS audio
+      operationId: voiceQuery
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              properties:
+                audio:
+                  type: string
+                  format: binary
+                  description: Recorded audio (e.g. WAV)
+                session_id:
+                  type: string
+                  nullable: true
+                price_max:
+                  type: number
+                  nullable: true
+                category:
+                  type: string
+                  nullable: true
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VoiceQueryRequest'
+      responses:
+        '200':
+          description: Success (transcript + response; status indicates any partial failure)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VoiceQueryResponse'
+        '422':
+          description: Validation error
+        '503':
+          description: Pipeline error (e.g. STT/LLM/TTS unavailable)
+
+  /api/v1/search:
+    post:
+      summary: Hybrid search (semantic + keyword filters)
+      operationId: search
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SearchRequest'
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SearchResponse'
+        '422':
+          description: Validation error
+
+components:
+  schemas:
+    VoiceQueryRequest:
+      type: object
+      properties:
+        audio_base64:
+          type: string
+          description: Base64-encoded audio (WAV)
+        session_id:
+          type: string
+          nullable: true
+        filters:
+          type: object
+          properties:
+            price_max:
+              type: number
+            category:
+              type: string
+
+    VoiceQueryResponse:
+      type: object
+      required:
+        - response_text
+      properties:
+        transcript:
+          type: string
+        response_text:
+          type: string
+        product_ids:
+          type: array
+          items:
+            type: string
+        status:
+          type: string
+          enum: [ok, stt_failed, no_results, pipeline_error]
+        audio_base64:
+          type: string
+          description: TTS audio (base64); omitted on error or when no TTS
+
+    SearchRequest:
+      type: object
+      required:
+        - query_text
+      properties:
+        query_text:
+          type: string
+        top_k:
+          type: integer
+          minimum: 1
+          maximum: 20
+          default: 5
+        filters:
+          type: object
+          properties:
+            price_max:
+              type: number
+            category:
+              type: string
+
+    SearchResponse:
+      type: object
+      properties:
+        product_ids:
+          type: array
+          items:
+            type: string
+        products:
+          type: array
+          items:
+            $ref: '#/components/schemas/Product'
+        total:
+          type: integer
+
+    Product:
+      type: object
+      properties:
+        id:
+          type: string
+        title:
+          type: string
+        description:
+          type: string
+        price:
+          type: number
+        category:
+          type: string
+        image_url:
+          type: string

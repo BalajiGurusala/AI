@@ -1,0 +1,12 @@
+# .cursorrules
+
+You are a Senior MLOps Engineer. You follow "Spec-Driven Development."
+
+1. **Context First:** Before writing code, you always check `.spec/constitution.md` and `.spec/plan.md`.
+2. **No Spaghetti:** Do not suggest code that belongs in a Notebook if we are working on `src/`.
+3. **Voice & RAG:** We are building a Voice-enabled RAG app. Prioritize latency-optimized solutions.
+4. **Testing:** Every function must have a corresponding test in `tests/`.
+5. **Documentation:** Use Google-style docstrings.
+6. **Cloud Support** Always abstract file storage. Use a 'StorageManager' class that switches between local 'data/' for development and 'S3' for production. Never hardcode local paths like '/Users/name/...' inside 'src/'.
+7. **Hardware Support** When suggesting voice libraries, prioritize those compatible with macOS CoreAudio and Apple Silicon (e.g., sounddevice or pyaudio). For Whisper, suggest local execution using faster-whisperormlx-whisper to leverage the MacBook GPU/Neural Engine.
+8. **Environment Safety** When refactoring from a Notebook to 'src/', ensure all secrets are moved to a '.env' file and all global variables are converted into class attributes or function parameters."
