@@ -21,6 +21,27 @@
 
 ---
 
+## Phase 0: Research & Prototyping (Notebooks)
+
+**Purpose**: Validate the "Math" and "Models" in a sandbox before writing production code.
+
+- [ ] T000a Create `notebooks/` directory and `notebooks/requirements.txt` (jupyter, pandas, matplotlib)
+- [ ] T000b [Kaggle] Create "ShopTalk EDA" notebook: Load ABO dataset, analyze price distribution, check image URL validity, and clean text.
+- [ ] T000c [Kaggle] Create "Image Captioning" pipeline: Use BLIP/CLIP on GPU to generate captions for a sample of 100 images; save as `enriched_products.csv`.
+- [ ] T000d [Local] Create `notebooks/01_rag_prototype.ipynb`:
+    - Load `enriched_products.csv`.
+    - Generate embeddings (all-MiniLM-L6-v2).
+    - Store in temporary ChromaDB.
+    - Test queries ("red shirt") to verify retrieval quality.
+- [ ] T000e [Local] Create `notebooks/02_voice_test.ipynb`:
+    - Record 5s of audio using `pyaudio`.
+    - Transcribe using `whisper` (Base model).
+    - Verify transcription accuracy.
+
+**Checkpoint**: You have "Gold Standard" data and proved the RAG logic works.
+
+---
+
 ## Phase 1: Setup (Shared Infrastructure)
 
 **Purpose**: Project initialization and structure per plan.md
@@ -41,7 +62,7 @@
 
 **Purpose**: Core infrastructure required before any user story. Models load once at startup.
 
-- [ ] T008 Implement pydantic models for Product, ChatMessage, VoiceQueryRequest, VoiceQueryResponse, SearchRequest, SearchResponse in backend/src/models/schemas.py
+- [ ] T008 Implement pydantic models for Product, ChatMessage, ChatRequest, ChatResponse, VoiceQueryRequest, VoiceQueryResponse, SearchRequest, SearchResponse in backend/src/models/schemas.py
 - [ ] T009 Implement ChromaDB client wrapper (connect, query with metadata filter) in backend/src/services/vector_store.py with configurable path from env
 - [ ] T010 Implement embedding loader (HuggingFace all-MiniLM-L6-v2 or env override) in backend/src/services/embeddings.py; load once at module/singleton level
 - [ ] T011 Create FastAPI app and router skeleton in backend/src/api/main.py with CORS for Streamlit origin
@@ -56,11 +77,11 @@
 
 ---
 
-## Phase 3: User Story 1 – Voice + RAG Pipeline (Priority: P1) – MVP
+## Phase 3: User Story 1 – Text Query + RAG Pipeline (Priority: P1) – MVP
 
-**Goal**: User submits voice audio; app transcribes, runs hybrid search, generates natural language response, optionally returns TTS audio. Handles STT failure, empty results, and pipeline errors with spec messages.
+**Goal**: Text-based query is primary: client submits text query; backend runs hybrid search + RAG and returns natural language response + product_ids. Voice (STT/TTS) is optional; app must be fully functional without a microphone. Handles empty results and pipeline errors with spec messages.
 
-**Independent Test**: POST audio to /api/v1/voice/query; receive response_text and product_ids or error status; GET /health returns ok when models and Chroma are ready.
+**Independent Test**: POST /api/v1/chat with query_text returns response_text and product_ids (or empty/error message); GET /health returns ok. Optional: POST /api/v1/voice/query returns same shape for voice path.
 
 ### Tests for User Story 1
 
@@ -76,35 +97,36 @@
 - [ ] T024 [US1] Implement hybrid search service (semantic + metadata filters price_max, category) in backend/src/services/search.py using ChromaDB and embedding model
 - [ ] T025 [US1] Implement RAG generation service (retrieve top-k, build prompt, call LLM) in backend/src/services/rag.py using LangChain; handle zero results with spec message text
 - [ ] T026 [US1] Implement voice pipeline orchestrator (STT → search → RAG → TTS) in backend/src/services/voice_pipeline.py with status stt_failed, no_results, pipeline_error and spec response messages
-- [ ] T027 [US1] Implement POST /api/v1/voice/query in backend/src/api/routes/voice.py (accept multipart or JSON with audio_base64, filters); return VoiceQueryResponse
-- [ ] T028 [US1] Implement POST /api/v1/search in backend/src/api/routes/search.py (SearchRequest → SearchResponse with product_ids, products, total)
-- [ ] T029 [US1] Wire voice and search routes into backend/src/api/main.py and ensure models load once at startup
+- [ ] T027 [US1] Implement POST /api/v1/chat in backend/src/api/routes/chat.py (Text -> RAG -> Response + Product IDs). *Primary text flow.*
+- [ ] T027b [US1] Implement POST /api/v1/voice/query in backend/src/api/routes/voice.py (Audio -> STT -> call Chat Service -> TTS). *Secondary voice flow.*
+- [ ] T028 [US1] Implement POST /api/v1/search in backend/src/api/routes/search.py (Pure search: Text -> Product List, no LLM generation).
+- [ ] T029 [US1] Wire chat, voice, and search routes into backend/src/api/main.py and ensure models load once at startup
 - [ ] T030 [US1] Add logging for voice and RAG pipeline steps in backend/src/services/voice_pipeline.py and backend/src/api/routes/voice.py
 
-**Checkpoint**: US1 complete – voice endpoint returns transcript + response + product_ids or error; search endpoint returns products; integration tests pass
+**Checkpoint**: US1 complete – chat endpoint (text query) returns response_text + product_ids or error; optional voice endpoint works; integration tests pass
 
 ---
 
 ## Phase 4: User Story 2 – Streamlit Chat UI (Priority: P2)
 
-**Goal**: User sees Streamlit UI with sidebar (filters, Record), chat area (user/assistant bubbles, status "Listening…", "Searching…", "Generating…", error messages), and product cards (image, title, price, Add to Cart mock). Session-scoped in-memory chat history; context-aware follow-ups.
+**Goal**: User sees Streamlit UI with **text input as primary** (type query → submit → get response + product cards). Sidebar: Price/Category filters and optional "Mic" button (STT populates text input). Optional "Read Aloud" for TTS. Chat area: user/assistant bubbles, status messages when using voice path; product cards (image, title, price, Add to Cart mock). App fully functional without microphone. Session-scoped in-memory chat history; context-aware follow-ups.
 
-**Independent Test**: Open Streamlit app; click Record and speak; see status then reply and product cards; change filters and search again; see empty-state or error message when applicable.
+**Independent Test**: Open app; type a query and submit; see response and product cards (no mic). Optionally use Mic and Read Aloud; see status messages and error/empty states when applicable.
 
 ### Implementation for User Story 2
 
-- [ ] T031 [P] [US2] Implement API client for backend (health, voice/query, search) in frontend/src/services/api_client.py
+- [ ] T031 [P] [US2] Implement API client for backend (health, chat, voice/query, search) in frontend/src/services/api_client.py
 - [ ] T032 [US2] Implement session state for chat messages (list of role, content, message_type, product_ids) in frontend/src/services/chat_state.py
 - [ ] T033 [US2] Build chat message component (user bubble, assistant bubble, status, error) in frontend/src/components/chat_message.py
 - [ ] T034 [US2] Build product card component (image, title, price, Add to Cart mock button) in frontend/src/components/product_card.py
-- [ ] T035 [US2] Build sidebar (Price filter, Category filter, Record button) in frontend/src/components/sidebar.py
-- [ ] T036 [US2] Implement main chat page: render messages, show status during request, call voice API on Record and append user + assistant messages in frontend/src/pages/chat.py
+- [ ] T035 [US2] Build sidebar (Price filter, Category filter, optional Record button) in frontend/src/components/sidebar.py
+- [ ] T036 [US2] Implement main chat page with text input (primary): on submit, call POST /api/v1/chat, show status "Searching…" then "Generating…", append user and assistant messages and product cards in frontend/src/pages/chat.py
 - [ ] T037 [US2] Implement product grid: display product cards from last assistant message product_ids in frontend/src/pages/chat.py or frontend/src/components/product_grid.py
-- [ ] T038 [US2] Wire Record button to record audio, send to POST /api/v1/voice/query, display "Listening…" then "Searching…" then "Generating…" then result or error in frontend
-- [ ] T039 [US2] Pass session chat history as context to backend for follow-up queries (e.g. "show me the blue one") in frontend/src/services/api_client.py and backend if needed
+- [ ] T038 [US2] Wire optional Mic button: record audio, send to POST /api/v1/voice/query, display "Listening…" then "Searching…" then "Generating…", populate text input with transcript and append response in frontend
+- [ ] T039 [US2] Add optional Read Aloud button for assistant responses (TTS) and pass session chat history as context for follow-up queries in frontend/src/services/api_client.py and backend if needed
 - [ ] T040 [US2] Handle empty search and pipeline error messages in UI (show assistant bubble with spec text, no TTS for error)
 
-**Checkpoint**: US2 complete – full voice-driven chat UI with filters, status, product cards, and error/empty states
+**Checkpoint**: US2 complete – chat UI works via text submit without mic; optional Mic and Read Aloud; filters, product cards, error/empty states
 
 ---
 
@@ -144,15 +166,15 @@
 
 - **Phase 1 (Setup)**: No dependencies – start immediately
 - **Phase 2 (Foundational)**: Depends on Phase 1 – blocks all user stories
-- **Phase 3 (US1)**: Depends on Phase 2 – MVP voice + RAG pipeline
-- **Phase 4 (US2)**: Depends on Phase 3 – needs voice and search API
+- **Phase 3 (US1)**: Depends on Phase 2 – MVP text + RAG pipeline (chat, voice, search)
+- **Phase 4 (US2)**: Depends on Phase 3 – needs chat endpoint (and optionally voice, search)
 - **Phase 5 (US3)**: Depends on Phase 2 (can run in parallel with US1/US2 for backend-only; for full E2E, after US1)
 - **Phase 6 (Polish)**: Depends on Phase 3–5 as needed
 
 ### User Story Dependencies
 
 - **US1 (P1)**: After Foundational – no dependency on US2/US3 (can use fixture or minimal Chroma data for integration tests)
-- **US2 (P2)**: After US1 – depends on voice and search endpoints
+- **US2 (P2)**: After US1 – depends on chat endpoint (and optionally voice, search)
 - **US3 (P3)**: After Foundational – can run parallel to US1 for backend; provides real data for E2E
 
 ### Within Each User Story
@@ -192,22 +214,27 @@ Task T023: backend/src/services/tts.py
 
 1. Complete Phase 1: Setup  
 2. Complete Phase 2: Foundational  
-3. Complete Phase 3: User Story 1 (voice + RAG pipeline)  
-4. **STOP and VALIDATE**: Call /health and POST /api/v1/voice/query (and /api/v1/search) with test data  
-5. Demo backend API; add minimal Streamlit caller if needed for demo  
+3. Complete Phase 3: User Story 1 (text query + RAG pipeline)  
+4. **STOP and VALIDATE**: Call /health and POST /api/v1/chat with query_text; receive response_text + product_ids (no microphone required)  
+5. Demo backend API; add minimal Streamlit text-input caller if needed for demo  
 
 ### Incremental Delivery
 
 1. Setup + Foundational → health and vector store ready  
-2. US1 → Voice + RAG API testable (MVP)  
-3. US2 → Full Streamlit UI (voice-driven chat + product cards)  
+2. US1 → Text + RAG API testable (MVP; no voice required)  
+3. US2 → Full Streamlit UI (text-primary chat + optional Mic/Read Aloud + product cards)  
 4. US3 → Real ABO ingestion  
 5. Polish → Quickstart, Docker, docs  
 
 ### Suggested MVP Scope
 
 - **MVP = Phase 1 + Phase 2 + Phase 3 (US1)**  
-- Delivers: backend with health, voice/query, search; contract and integration tests; no UI required for MVP definition, but US2 is needed for end-to-end user flow.
+- Delivers: backend with health and **chat** (text query → RAG → response_text + product_ids); optional voice endpoint; contract and integration tests. App is fully functional without a microphone; US2 adds full UI including optional voice.
+
+### Deferred (post-MVP)
+
+- **Evaluation reporting** (requirements §5): P95/P99 latency reporting, Precision@K measurement, 50-query Helpfulness/Naturalness scoring – add tasks when moving from MVP to grading deliverables.
+- **MLOps pipelines** (requirements §6): Airflow ingestion DAG, MLflow experiment logging, Evidently/Grafana monitoring – add tasks when standing up full MLOps; T048 covers docker-compose for app services only.
 
 ---
 
