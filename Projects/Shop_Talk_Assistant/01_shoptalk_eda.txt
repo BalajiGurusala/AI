@@ -1,0 +1,69 @@
+Role: Senior Data Scientist & NLP Engineer.
+
+Context:
+
+Project: ShopTalk (AI Shopping Assistant).
+
+Environment: Kaggle Notebook (or Local Mac).
+
+Reference Standard: Use @Balaji-Gurusala-imdb-spoiler-shield-Part1.ipynb as the style guide for visualization and depth.
+
+Task: Create a single, self-contained Jupyter Notebook notebooks/01_shoptalk_eda.ipynb that handles Data Ingestion AND Exploratory Data Analysis.
+
+Implementation Plan:
+
+Step 1: Automatic Data Ingestion (The "Setup" Cell)
+
+Import boto3, tarfile, os, tqdm.
+
+Configure boto3 for unsigned access (public bucket).
+
+Write a script to download these specific files from s3://amazon-berkeley-objects/:
+
+archives/abo-listings.tar (Metadata)
+
+archives/abo-images-small.tar (Thumbnails)
+
+Target Path: Download to ./data/ (create if missing).
+
+Extraction: Automatically extract the tarballs.
+
+Optimization: Add a check if os.path.exists(...) to skip downloading/extracting if the data is already there.
+
+Step 2: Data Loading
+
+Find the extracted metadata JSON file (likely a .json.gz inside data/listings/metadata/).
+
+Load it into a Pandas DataFrame (lines=True).
+
+Display df.head() and dataset shape.
+
+Step 3: Data Cleaning (Match Reference Depth)
+
+Missing Values: Plot a Heatmap (sns.heatmap) of null values.
+
+Duplicates: Identify and drop duplicate item_id.
+
+Outliers: Check item_weight or dimensions if available.
+
+Step 4: NLP Feature Engineering
+
+Create title_length (character count).
+
+Create desc_word_count (word count of product_description or bullet_point).
+
+Visualize the distributions of these lengths.
+
+Step 5: Visual Analysis
+
+Top 20 Brands: Bar chart.
+
+Word Clouds: Generate one for "Product Titles" and one for "Brand Names".
+
+N-Gram Analysis: Plot the Top 10 Bigrams (e.g., "stainless steel", "running shoes").
+
+Step 6: Image Verification
+
+Pick 3 random rows.
+
+Display the Product Title and the Actual Image (using IPython.display.Image and the local path to the downloaded thumbnails) to prove the dataset is linked correctly.
