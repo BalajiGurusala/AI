@@ -224,16 +224,39 @@ components:
 
     Product:
       type: object
+      description: >
+        Flattened product from ABO dataset. ABO stores metadata as JSON Lines with
+        nested [{language_tag, value}] arrays; fields below are the English-flattened
+        versions. Price is SYNTHETIC (ABO has no price field) – assigned during ingestion.
+        image_url is derived from main_image_id + image base path.
       properties:
         id:
           type: string
+          description: ABO item_id
         title:
           type: string
+          description: Flattened from item_name (en_US preferred)
         description:
           type: string
+          description: Flattened from product_description
+        bullet_points:
+          type: string
+          description: Flattened & joined from bullet_point
+        keywords:
+          type: string
+          description: Flattened & joined from item_keywords
+        brand:
+          type: string
+          description: Flattened from brand
+        color:
+          type: string
+          description: Flattened from color
         price:
           type: number
+          description: "SYNTHETIC – ABO has no price; assigned during ingestion by category"
         category:
           type: string
+          description: Sourced from product_type[0].value
         image_url:
           type: string
+          description: Derived from main_image_id + image base path (not a native ABO field)

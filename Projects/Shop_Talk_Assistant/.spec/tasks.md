@@ -25,8 +25,8 @@
 
 **Purpose**: Validate the "Math" and "Models" in a sandbox before writing production code.
 
-- [ ] T000a Create `notebooks/` directory and `notebooks/requirements.txt` (jupyter, pandas, matplotlib)
-- [ ] T000b [Kaggle] Create "ShopTalk EDA" notebook: Load ABO dataset, analyze price distribution, check image URL validity, and clean text.
+- [x] T000a Create `notebooks/` directory and `notebooks/requirements.txt` (jupyter, pandas, matplotlib). **Done**: `notebooks/01_shoptalk_eda.ipynb` created.
+- [x] T000b [Local/Kaggle] Create "ShopTalk EDA" notebook (`notebooks/01_shoptalk_eda.ipynb`): Auto-ingest ABO from S3 (unsigned boto3), load JSON Lines metadata, flatten nested `[{language_tag, value}]` fields, analyze missing values (heatmap), detect duplicates, outlier check, NLP feature engineering (title_length, desc_word_count), Top 20 Brands, product type distribution, word clouds, n-gram analysis, image verification. **Note**: ABO has **no price field** (original "price distribution" is N/A); images are by `main_image_id` not URL.
 - [ ] T000c [Kaggle] Create "Image Captioning" pipeline: Use BLIP/CLIP on GPU to generate captions for a sample of 100 images; save as `enriched_products.csv`.
 - [ ] T000d [Local] Create `notebooks/01_rag_prototype.ipynb`:
     - Load `enriched_products.csv`.
@@ -37,6 +37,12 @@
     - Record 5s of audio using `pyaudio`.
     - Transcribe using `whisper` (Base model).
     - Verify transcription accuracy.
+
+**EDA Key Findings** (from 01_shoptalk_eda.ipynb):
+- ABO metadata is **JSON Lines** (`.json.gz`), not CSV. Nested `[{language_tag, value}]` format requires flattening to English.
+- **No price field** in ABO. Synthetic prices needed for `price_max` filter or filter becomes optional/demo-only.
+- `product_type` → our `category`; `main_image_id` → image path (not URL).
+- Rich text available in `bullet_point`, `item_keywords`, `color`, `material` for embedding.
 
 **Checkpoint**: You have "Gold Standard" data and proved the RAG logic works.
 
@@ -139,7 +145,7 @@
 ### Implementation for User Story 3
 
 - [ ] T041 [US3] Add data processing utilities (clean text, chunk) in backend/src/services/data_processing.py; unit test DataCleaner.clean_text() in backend/tests/unit/test_data_processing.py
-- [ ] T042 [US3] Implement ingestion script: load ABO CSV (or sample), build Product documents, chunk description+title+caption, embed, upsert ChromaDB in backend/scripts/ingest_abo.py or pipelines/ingest.py
+- [ ] T042 [US3] Implement ingestion script: load ABO **JSON Lines** (`.json.gz`), flatten nested fields (use `extract_lang_value`/`extract_list_values` from EDA notebook), optionally assign synthetic prices by category, build Product documents, chunk description+title+bullet_points+caption+keywords, embed, upsert ChromaDB in backend/scripts/ingest_abo.py or pipelines/ingest.py
 - [ ] T043 [US3] Document ingestion in quickstart (optional image captioning on Kaggle, then merge captions and re-run embed/upsert) in .specify/memory/quickstart.md
 - [ ] T044 [US3] Add minimal sample dataset or fixture for dev (small CSV + ChromaDB seed) so backend/tests/integration can run without full ABO
 

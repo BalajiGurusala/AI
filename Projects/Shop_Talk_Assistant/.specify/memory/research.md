@@ -68,9 +68,13 @@ All Technical Context items are resolved from constitution and requirements. Thi
 
 ## 7. Hybrid Search (Semantic + Keyword)
 
-**Decision**: Implement hybrid as: (1) semantic search via vector similarity (ChromaDB/OpenSearch); (2) keyword filters (e.g., price, category) applied in application or via metadata filter. Combine into single ranked result set.
+**Decision**: Implement hybrid as: (1) semantic search via vector similarity (ChromaDB/OpenSearch); (2) keyword filters (e.g., price, category, brand, color) applied in application or via metadata filter. Combine into single ranked result set.
 
 **Rationale**: Requirements mandate both "red shirt" (semantic) and "under $50" (keyword); vector DB supports metadata filtering; LangChain retriever can wrap combined logic.
+
+**EDA finding (ABO has no price):** The ABO dataset does not include a price field. Options: (a) assign **synthetic prices** by `product_type` during ingestion to support `price_max` filtering for demo; (b) make price filter optional/disabled in UI; (c) supplement with a dataset that has prices. **Recommended: (a)** – assign random price within a plausible range per category so the filter works end-to-end. Document that prices are synthetic.
+
+**Additional filter dimensions from EDA:** `brand` (well-populated), `color`, `product_type` (=category) are available for metadata filtering beyond the originally planned price + category.
 
 **Alternatives considered**: Two-step only (no fusion) rejected; pure keyword rejected for semantic requirement.
 

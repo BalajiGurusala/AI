@@ -83,11 +83,17 @@ pipelines/               # Airflow DAGs, ingestion scripts (optional for MVP)
 
 ### Phase 0: Research & Prototyping (Notebooks)
 **Goal**: Validate data and RAG logic in a sandbox before writing production code.
-- [ ] T000a Create `notebooks/` directory and requirements.
-- [ ] T000b [Kaggle] ShopTalk EDA (Price distribution, Image URL check).
+- [x] T000a Create `notebooks/` directory and requirements.
+- [x] T000b [Local/Kaggle] ShopTalk EDA: S3 ingestion, field completeness analysis, text length distributions, brand/category analysis, n-grams, image verification. *(ABO has no price field; "price distribution" replaced with field-completeness and NLP feature analysis.)*
 - [ ] T000c [Kaggle] Image Captioning pipeline (BLIP/CLIP) -> `enriched_products.csv`.
 - [ ] T000d [Local] `01_rag_prototype.ipynb`: Load data, ChromaDB, test "Text Search".
 - [ ] T000e [Local] `02_voice_test.ipynb`: Record audio -> Whisper -> Print Text.
+
+**EDA Key Findings** (update after notebook run):
+- ABO metadata is **JSON Lines (gzipped)**, not CSV. Nested `[{language_tag, value}]` format requires flattening.
+- **No `price` field** in ABO. Synthetic prices needed for `price_max` filter or filter becomes optional.
+- `product_type` maps to our `category`; images referenced by `main_image_id` (not URL).
+- Rich text in `bullet_point`, `item_keywords`, `color`, `material` available for embedding.
 
 ### Phase 1: Setup (Shared Infrastructure)
 **Goal**: Initialize project skeleton.

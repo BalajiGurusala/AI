@@ -40,10 +40,13 @@
 * **Load:** Single user or demo only; no target for concurrent users or QPS.
 
 ## 3. Data Strategy
-* **Source:** Amazon Berkeley Objects (ABO) Dataset (CSV + Images).
+* **Source:** Amazon Berkeley Objects (ABO) Dataset (**JSON Lines, gzipped** + Images). Downloaded from `s3://amazon-berkeley-objects/` (public bucket, unsigned access).
+  * **Format note (from EDA):** ABO metadata is `.json.gz` (JSON Lines), **not CSV**. Fields use nested `[{language_tag, value}]` arrays requiring English extraction/flattening.
+  * **Price note (from EDA):** ABO **does not contain a price field**. For `price_max` filter support, synthetic prices must be assigned during ingestion (e.g., by category) or the filter must be marked optional/demo-only.
+  * **Images:** Referenced by `main_image_id` (not URL); thumbnails in `abo-images-small.tar`.
 * **Processing:**
     * **Images:** Captioning via BLIP/CLIP (running on Kaggle).
-    * **Text:** Chunking and Embedding via HuggingFace models.
+    * **Text:** Flatten nested ABO fields → chunk and embed via HuggingFace models.
 * **Storage:**
     * **Dev:** ChromaDB (Local).
     * **Prod:** AWS OpenSearch or ChromaDB on EC2.

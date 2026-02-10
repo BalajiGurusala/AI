@@ -3,10 +3,10 @@
 ## 1. High-Level Data Flow
 
 ### A. Training & Ingestion Pipeline (Kaggle + Airflow)
-* **Input:** Amazon Berkeley Objects (ABO) Dataset (Images + Metadata CSV).
+* **Input:** Amazon Berkeley Objects (ABO) Dataset (Images + **Metadata JSON Lines, gzipped**). Downloaded from `s3://amazon-berkeley-objects/` (public, unsigned). Nested `[{language_tag, value}]` fields require English extraction/flattening. **Note: ABO has no price field**; synthetic prices assigned during ingestion if price filtering is needed.
 * **Image Processing (Kaggle GPU):**
     * Raw Images -> **BLIP/CLIP Model** -> Generated Captions.
-    * *Output:* Enriched CSV (Product Description + Image Captions).
+    * *Output:* Enriched dataset (Product Description + Image Captions).
 * **Embedding Fine-Tuning (Kaggle GPU):**
     * Enriched Text -> **Triplet Loss Training** -> Fine-Tuned Embedding Model adapter.
     * *Artifacts:* Saved to **MLflow Registry** (`.pt` files).
