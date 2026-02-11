@@ -45,7 +45,9 @@
   * **Price note (from EDA):** ABO **does not contain a price field**. For `price_max` filter support, synthetic prices must be assigned during ingestion (e.g., by category) or the filter must be marked optional/demo-only.
   * **Images:** Referenced by `main_image_id` (not URL); thumbnails in `abo-images-small.tar`.
 * **Processing:**
-    * **Images:** Captioning via BLIP/CLIP (running on Kaggle).
+    * **Images:**
+        * **Object-of-Interest Extraction:** Product images may contain background objects (tables, walls, floors) that confuse unconditional captioning. Use zero-shot object detection (OWL-ViT, `google/owlvit-base-patch32`) with the product title/category as query to locate and crop the product region before captioning with BLIP. Falls back to full-image captioning when no detection exceeds the confidence threshold.
+        * **Captioning:** BLIP (`Salesforce/blip-image-captioning-base`) generates captions for the cropped product region. CLIP (`openai/clip-vit-base-patch32`) validates image-text alignment.
     * **Text:** Flatten nested ABO fields → chunk and embed via HuggingFace models.
 * **Storage:**
     * **Dev:** ChromaDB (Local).

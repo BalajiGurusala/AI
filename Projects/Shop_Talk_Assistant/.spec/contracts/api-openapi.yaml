@@ -237,3 +237,11 @@ components:
           type: string
         image_url:
           type: string
+          description: Derived from main_image_id + image base path
+        image_caption:
+          type: string
+          description: BLIP caption of detected product region (detect-then-caption pipeline)
+        detection_confidence:
+          type: number
+          format: float
+          description: OWL-ViT confidence score for detected product region; null if fallback to full image

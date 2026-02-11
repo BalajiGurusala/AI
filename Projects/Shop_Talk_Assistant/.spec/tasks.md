@@ -27,7 +27,7 @@
 
 - [x] T000a Create `notebooks/` directory and `notebooks/requirements.txt` (jupyter, pandas, matplotlib). **Done**: `notebooks/01_shoptalk_eda.ipynb` created.
 - [x] T000b [Local/Kaggle] Create "ShopTalk EDA" notebook (`notebooks/01_shoptalk_eda.ipynb`): Auto-ingest ABO from S3 (unsigned boto3), load JSON Lines metadata, flatten nested `[{language_tag, value}]` fields, analyze missing values (heatmap), detect duplicates, outlier check, NLP feature engineering (title_length, desc_word_count), Top 20 Brands, product type distribution, word clouds, n-gram analysis, image verification. **Note**: ABO has **no price field** (original "price distribution" is N/A); images are by `main_image_id` not URL.
-- [ ] T000c [Kaggle] Create "Image Captioning" pipeline: Use BLIP/CLIP on GPU to generate captions for a sample of 100 images; save as `enriched_products.csv`.
+- [ ] T000c [Kaggle] Create "Detect-then-Caption" pipeline (`notebooks/02-image-captioning.ipynb`): Use **OWL-ViT** (`google/owlvit-base-patch32`) for zero-shot object detection to locate the product of interest using title/category as query, crop to bounding box, then caption the cropped region with **BLIP** (`Salesforce/blip-image-captioning-base`). Falls back to full-image BLIP captioning when no detection exceeds threshold. Validates with **CLIP** (`openai/clip-vit-base-patch32`). Outputs `enriched_products.csv` with `image_caption` and `detection_confidence` columns.
 - [ ] T000d [Local] Create `notebooks/01_rag_prototype.ipynb`:
     - Load `enriched_products.csv`.
     - Generate embeddings (all-MiniLM-L6-v2).
