@@ -1,0 +1,10 @@
+numpy
+pandas
+matplotlib
+seaborn
+tqdm
+pillow
+torch
+transformers
+langdetect
+deep-translator
