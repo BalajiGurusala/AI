@@ -1,0 +1,15 @@
+# ShopTalk Docker — Ignore
+.git
+.env
+__pycache__
+*.pyc
+*.egg-info
+.ipynb_checkpoints
+notebooks/
+.spec/
+deploy/
+*.md
+.venv/
+venv/
+.cursor/
+data/

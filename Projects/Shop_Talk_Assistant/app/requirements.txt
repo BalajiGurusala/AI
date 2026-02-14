@@ -1,0 +1,26 @@
+# ShopTalk AI Assistant - Streamlit App Dependencies
+# Install: pip install -r app/requirements.txt
+
+# --- Core ---
+streamlit>=1.30.0
+pandas>=2.0.0
+numpy>=1.24.0
+
+# --- ML Models ---
+torch>=2.0.0
+sentence-transformers>=2.2.0
+transformers>=4.35.0
+
+# --- LLM Integration (LangChain per constitution.md) ---
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-ollama>=0.1.0      # Ollama (local, free — default)
+langchain-openai>=0.0.5      # OpenAI GPT-4o (proprietary benchmark)
+langchain-groq>=0.0.1        # Groq Llama-3.3 (cloud, free tier — Kaggle fallback)
+openai>=1.0.0
+groq>=0.4.0
+
+# --- Utilities ---
+python-dotenv>=1.0.0
+Pillow>=10.0.0
+httpx>=0.25.0

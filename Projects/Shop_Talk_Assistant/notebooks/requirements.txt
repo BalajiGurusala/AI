@@ -1,12 +1,37 @@
+# ShopTalk Notebooks Dependencies
+# NB01: EDA
 numpy
 pandas
 matplotlib
 seaborn
 tqdm
 pillow
+nltk
+wordcloud
+
+# NB02: Image Captioning
 torch
 transformers
 sentence-transformers
 chromadb
 langdetect
 deep-translator
+
+# NB03: RAG Prototype
+# (uses torch, transformers, sentence-transformers, chromadb from above)
+
+# NB04: LLM Integration
+langchain
+langchain-core
+langchain-ollama
+langchain-openai
+langchain-groq
+openai
+groq
+python-dotenv
+tiktoken
+httpx
+
+# NB05: Fine-Tuning
+peft
+faiss-cpu

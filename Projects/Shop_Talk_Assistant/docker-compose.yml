@@ -1,0 +1,104 @@
+# ShopTalk AI Assistant — Docker Compose
+# Runs: Ollama (LLM) + FastAPI (backend) + Streamlit (frontend)
+#
+# Usage:
+#   docker compose up -d         # Start all services
+#   docker compose logs -f       # Watch logs
+#   docker compose down          # Stop all
+#
+# Access:
+#   Frontend:  http://localhost:8501
+#   Backend:   http://localhost:8000/health
+#   Ollama:    http://localhost:11434
+
+services:
+  # ============================================================
+  # Ollama — Local LLM Server (free, no API keys)
+  # ============================================================
+  ollama:
+    image: ollama/ollama:latest
+    container_name: shoptalk-ollama
+    ports:
+      - "11434:11434"
+    volumes:
+      - ollama_data:/root/.ollama
+    # GPU support (remove if no GPU)
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:11434/api/tags"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Pull the model after Ollama starts
+  ollama-init:
+    image: curlimages/curl:latest
+    container_name: shoptalk-ollama-init
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: >
+      sh -c "
+        echo 'Pulling llama3.2 model...' &&
+        curl -s http://ollama:11434/api/pull -d '{\"name\": \"llama3.2\"}' &&
+        echo 'Model ready!'
+      "
+    restart: "no"
+
+  # ============================================================
+  # Backend — FastAPI (search models + RAG pipeline)
+  # ============================================================
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: shoptalk-backend
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data:ro
+    environment:
+      - DATA_DIR=/app/data
+      - OLLAMA_BASE_URL=http://ollama:11434
+      - OLLAMA_MODEL=llama3.2
+      - CORS_ORIGINS=http://localhost:8501,http://frontend:8501
+      # Optional cloud LLM keys (leave empty if using Ollama)
+      - OPENAI_API_KEY=${OPENAI_API_KEY:-}
+      - GROQ_API_KEY=${GROQ_API_KEY:-}
+    depends_on:
+      ollama:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 15s
+      timeout: 10s
+      retries: 10
+      start_period: 60s  # Models take ~30-60s to load
+    restart: unless-stopped
+
+  # ============================================================
+  # Frontend — Streamlit Chat UI
+  # ============================================================
+  frontend:
+    build:
+      context: .
+      dockerfile: frontend/Dockerfile
+    container_name: shoptalk-frontend
+    ports:
+      - "8501:8501"
+    environment:
+      - BACKEND_URL=http://backend:8000
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  ollama_data:

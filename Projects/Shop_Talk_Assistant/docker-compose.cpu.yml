@@ -1,0 +1,12 @@
+# ShopTalk — CPU-Only Override (no GPU required)
+# Use this on EC2 instances without GPUs (t3.xlarge, c5.xlarge, etc.)
+#
+# Usage:
+#   docker compose -f docker-compose.yml -f docker-compose.cpu.yml up -d
+
+services:
+  ollama:
+    deploy:
+      resources:
+        # Remove GPU reservation — CPU only
+        reservations: {}

@@ -1,0 +1,1 @@
+# ShopTalk shared modules

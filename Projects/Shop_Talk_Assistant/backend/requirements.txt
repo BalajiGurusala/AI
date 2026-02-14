@@ -1,0 +1,21 @@
+# ShopTalk Backend Dependencies
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+pydantic-settings>=2.0.0
+python-dotenv>=1.0.0
+
+# ML Models
+torch>=2.0.0
+sentence-transformers>=2.2.0
+transformers>=4.35.0
+numpy>=1.24.0
+pandas>=2.0.0
+
+# LLM (Ollama is default — no API key needed)
+langchain>=0.1.0
+langchain-core>=0.1.0
+langchain-ollama>=0.1.0
+langchain-openai>=0.0.5
+langchain-groq>=0.0.1
+httpx>=0.25.0
