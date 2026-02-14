@@ -6,5 +6,7 @@ tqdm
 pillow
 torch
 transformers
+sentence-transformers
+chromadb
 langdetect
 deep-translator
