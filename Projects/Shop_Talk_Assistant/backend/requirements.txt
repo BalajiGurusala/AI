@@ -19,3 +19,8 @@ langchain-ollama>=0.1.0
 langchain-openai>=0.0.5
 langchain-groq>=0.0.1
 httpx>=0.25.0
+
+# Voice (STT + TTS)
+openai-whisper>=20231117
+gTTS>=2.3.0
+python-multipart>=0.0.6

@@ -3,9 +3,9 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# System deps
+# System deps (ffmpeg required by Whisper STT)
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential && \
+    build-essential ffmpeg curl && \
     rm -rf /var/lib/apt/lists/*
 
 # Python deps (cached layer)

@@ -20,6 +20,10 @@ langchain-groq>=0.0.1        # Groq Llama-3.3 (cloud, free tier — Kaggle fallb
 openai>=1.0.0
 groq>=0.4.0
 
+# --- Voice (STT + TTS, optional for standalone mode) ---
+openai-whisper>=20231117
+gTTS>=2.3.0
+
 # --- Utilities ---
 python-dotenv>=1.0.0
 Pillow>=10.0.0

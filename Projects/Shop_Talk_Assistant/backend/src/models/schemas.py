@@ -63,9 +63,20 @@ class SearchResponse(BaseModel):
     total: int = 0
 
 
+class VoiceQueryResponse(BaseModel):
+    transcript: str = ""
+    response_text: str = ""
+    product_ids: List[str] = []
+    products: List[Product] = []
+    status: str = "ok"  # ok | stt_failed | no_results | pipeline_error
+    audio_base64: Optional[str] = None  # TTS audio (MP3, base64-encoded)
+
+
 class HealthResponse(BaseModel):
     status: str = "ok"
     embedding_loaded: bool = False
     chroma_connected: bool = False
     llm_available: bool = False
+    stt_available: bool = False
+    tts_available: bool = False
     product_count: int = 0

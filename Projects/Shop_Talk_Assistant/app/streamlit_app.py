@@ -15,9 +15,11 @@ Prerequisites:
 
 import os
 import sys
+import io
 import json
 import time
 import re
+import base64
 from pathlib import Path
 from typing import Optional, List, Dict, Any
 
@@ -481,6 +483,52 @@ def render_product_grid(results: pd.DataFrame, data_dir: Path):
 
 
 # ===========================================================================
+# Voice: STT (Whisper) + TTS (gTTS)
+# ===========================================================================
+
+@st.cache_resource(show_spinner="Loading Whisper STT model...")
+def load_whisper():
+    """Load Whisper model for local STT. Returns None if unavailable."""
+    try:
+        import whisper
+        model = whisper.load_model("base")
+        return model
+    except Exception:
+        return None
+
+
+def local_transcribe(audio_bytes: bytes) -> str:
+    """Transcribe audio locally using Whisper."""
+    import tempfile
+    whisper_model = load_whisper()
+    if whisper_model is None:
+        return ""
+    with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as f:
+        f.write(audio_bytes)
+        temp_path = f.name
+    try:
+        result = whisper_model.transcribe(temp_path, language="en", fp16=False)
+        return result.get("text", "").strip()
+    except Exception:
+        return ""
+    finally:
+        Path(temp_path).unlink(missing_ok=True)
+
+
+def local_tts(text: str) -> bytes:
+    """Convert text to speech locally using gTTS. Returns MP3 bytes."""
+    try:
+        from gtts import gTTS
+        buf = io.BytesIO()
+        tts = gTTS(text=text, lang="en", slow=False)
+        tts.write_to_fp(buf)
+        buf.seek(0)
+        return buf.read()
+    except Exception:
+        return b""
+
+
+# ===========================================================================
 # Backend API Client (thin-client mode for Docker/EC2 deployment)
 # ===========================================================================
 
@@ -516,6 +564,22 @@ def _backend_chat(query: str, top_k: int, price_max: float = None,
         ]
 
     r = httpx.post(f"{BACKEND_URL}/api/v1/chat", json=payload, timeout=30.0)
+    r.raise_for_status()
+    return r.json()
+
+
+def _backend_voice(audio_bytes: bytes, price_max: float = None,
+                   category: str = None) -> dict:
+    """Call the backend /api/v1/voice/query endpoint."""
+    files = {"audio": ("recording.wav", audio_bytes, "audio/wav")}
+    data = {}
+    if price_max is not None:
+        data["price_max"] = str(price_max)
+    if category:
+        data["category"] = category
+
+    r = httpx.post(f"{BACKEND_URL}/api/v1/voice/query",
+                   files=files, data=data, timeout=30.0)
     r.raise_for_status()
     return r.json()
 
@@ -631,6 +695,12 @@ def main():
             st.markdown(f"- **Categories:** {df['product_type_flat'].nunique()}")
         st.markdown(f"- **Mode:** {'Backend API' if USE_BACKEND else f'Local ({device})'}")
 
+        # Voice settings
+        st.divider()
+        st.markdown("### 🎙️ Voice")
+        voice_enabled = st.toggle("Enable voice input", value=False)
+        tts_enabled = st.toggle("Read responses aloud", value=False)
+
         # Clear chat
         st.divider()
         if st.button("🗑️ Clear Chat", type="primary", use_container_width=True):
@@ -672,7 +742,136 @@ def main():
                     render_product_grid(products_df, data_dir)
 
     # ==================================================================
-    # Chat Input
+    # Voice Input (microphone recording)
+    # ==================================================================
+    if voice_enabled:
+        audio_data = st.audio_input("🎙️ Record your question", key="voice_input")
+        if audio_data is not None:
+            audio_bytes = audio_data.read()
+            if audio_bytes and "last_audio_hash" not in st.session_state:
+                st.session_state.last_audio_hash = None
+
+            audio_hash = hash(audio_bytes)
+            if audio_bytes and audio_hash != st.session_state.get("last_audio_hash"):
+                st.session_state.last_audio_hash = audio_hash
+
+                with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
+                    if USE_BACKEND:
+                        # Backend mode: send audio to /api/v1/voice/query
+                        try:
+                            voice_result = _backend_voice(
+                                audio_bytes, price_max=price_max, category=category,
+                            )
+                            transcript = voice_result.get("transcript", "")
+                            stt_status.write(f"✅ Heard: \"{transcript}\"")
+
+                            if transcript:
+                                # Add user message with mic icon
+                                st.session_state.messages.append({
+                                    "role": "user",
+                                    "content": f"🎙️ {transcript}",
+                                })
+                                # Store the full voice result for processing below
+                                st.session_state._voice_result = voice_result
+                                st.session_state._voice_transcript = transcript
+                                stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
+                                st.rerun()
+                            else:
+                                stt_status.update(label="Could not understand audio", state="error")
+                        except Exception as e:
+                            stt_status.write(f"❌ Error: {str(e)[:100]}")
+                            stt_status.update(label="Voice error", state="error")
+                    else:
+                        # Standalone mode: transcribe locally
+                        transcript = local_transcribe(audio_bytes)
+                        if transcript:
+                            stt_status.write(f"✅ Heard: \"{transcript}\"")
+                            st.session_state.messages.append({
+                                "role": "user",
+                                "content": f"🎙️ {transcript}",
+                            })
+                            st.session_state._voice_transcript = transcript
+                            stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
+                            st.rerun()
+                        else:
+                            stt_status.update(label="Could not understand audio", state="error")
+
+    # Process pending voice result (after rerun from voice input)
+    if "_voice_transcript" in st.session_state:
+        prompt = st.session_state._voice_transcript
+        voice_result = st.session_state.pop("_voice_result", None)
+        del st.session_state._voice_transcript
+
+        # Process this voice query through the same pipeline as text
+        with st.chat_message("user"):
+            st.markdown(f"🎙️ {prompt}")
+
+        with st.chat_message("assistant"):
+            status = st.status("Processing voice query...", expanded=True)
+            response_text = ""
+            results = pd.DataFrame()
+
+            if USE_BACKEND and voice_result:
+                # We already have the result from the voice endpoint
+                response_text = voice_result.get("response_text", "")
+                if voice_result.get("products"):
+                    results = pd.DataFrame(voice_result["products"])
+                    rename_map = {"title": "item_name_flat", "id": "item_id",
+                                  "category": "product_type_flat", "brand": "brand_flat",
+                                  "color": "color_flat", "image_url": "path"}
+                    results = results.rename(columns={k: v for k, v in rename_map.items() if k in results.columns})
+                status.update(label="Done", state="complete")
+
+                # Play TTS audio if available
+                if tts_enabled and voice_result.get("audio_base64"):
+                    audio_bytes_tts = base64.b64decode(voice_result["audio_base64"])
+                    st.audio(audio_bytes_tts, format="audio/mp3")
+            else:
+                # Standalone mode: run RAG pipeline locally
+                status.write("🔍 Searching...")
+                t0 = time.time()
+                results = run_search(
+                    query=prompt, df=df,
+                    text_index=text_index, image_index=image_index,
+                    st_model=st_model, clip_model=clip_model,
+                    clip_processor=clip_processor, device=device,
+                    top_k=top_k, price_max=price_max, category=category,
+                )
+                search_time = time.time() - t0
+                status.write(f"✅ Found {len(results)} products ({search_time:.2f}s)")
+
+                if results.empty:
+                    response_text = "I couldn't find products matching that query."
+                else:
+                    llm = load_llm(selected_model) if selected_model != "none" else None
+                    if llm:
+                        response_text = rag_generate(query=prompt, results=results, llm=llm, session_history=[])
+                    else:
+                        response_text = "Here are the matching products:"
+
+                status.update(label="Done", state="complete")
+
+                # Play TTS locally
+                if tts_enabled and response_text:
+                    tts_audio = local_tts(response_text)
+                    if tts_audio:
+                        st.audio(tts_audio, format="audio/mp3")
+
+            st.markdown(response_text)
+
+            msg_idx = len(st.session_state.messages)
+            if not results.empty:
+                st.session_state.products[msg_idx] = results
+                st.markdown("---")
+                render_product_grid(results, data_dir)
+
+            st.session_state.messages.append({
+                "role": "assistant",
+                "content": response_text,
+            })
+
+    # ==================================================================
+    # Chat Input (text)
     # ==================================================================
     if prompt := st.chat_input("What are you looking for? (e.g., 'red shoes for women')"):
         # Add user message
@@ -777,6 +976,12 @@ def main():
 
             # Display response
             st.markdown(response_text)
+
+            # TTS: Read response aloud (text chat mode)
+            if tts_enabled and response_text:
+                tts_audio = local_tts(response_text)
+                if tts_audio:
+                    st.audio(tts_audio, format="audio/mp3")
 
             # Store and display products
             msg_idx = len(st.session_state.messages)

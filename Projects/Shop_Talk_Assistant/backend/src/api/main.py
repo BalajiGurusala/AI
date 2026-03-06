@@ -15,6 +15,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.src.config import settings
 from backend.src.services.embeddings import embedding_service
 from backend.src.services.rag import llm_manager
+from backend.src.services.voice import voice_service
 from backend.src.api.routes import router
 
 logging.basicConfig(
@@ -46,9 +47,14 @@ async def lifespan(app: FastAPI):
         groq_key=settings.groq_api_key,
     )
 
+    # Load voice service (Whisper STT + gTTS TTS)
+    voice_service.load(whisper_model_size="base")
+
     logger.info("=" * 60)
     logger.info(f"ShopTalk Backend — Ready ({embedding_service.df.shape[0]:,} products)")
-    logger.info(f"  LLM: {llm_manager.name}")
+    logger.info(f"  LLM:  {llm_manager.name}")
+    logger.info(f"  STT:  {'Whisper (base)' if voice_service.stt_available else 'unavailable'}")
+    logger.info(f"  TTS:  {'gTTS' if voice_service.tts_available else 'unavailable'}")
     logger.info(f"  Device: {embedding_service.device}")
     logger.info("=" * 60)
 
