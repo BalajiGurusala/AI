@@ -21,13 +21,33 @@ echo "=========================================="
 echo "[1/5] Updating system..."
 sudo apt-get update -y
 sudo apt-get upgrade -y
-sudo apt-get install -y curl git docker.io docker-compose-plugin
+sudo apt-get install -y curl git ca-certificates gnupg
 
-# --- 2. Docker setup ---
-echo "[2/5] Configuring Docker..."
+# --- 2. Docker setup (official Docker repo — includes compose plugin) ---
+echo "[2/5] Installing Docker from official repository..."
+
+# Add Docker's official GPG key
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
+    sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+# Add the Docker apt repository
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
+  https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt-get update -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
 sudo systemctl enable docker
 sudo systemctl start docker
 sudo usermod -aG docker $USER
+
+# Verify docker compose is available
+docker compose version
 
 # --- 3. NVIDIA GPU drivers (skip on CPU-only instances) ---
 if lspci | grep -qi nvidia; then
