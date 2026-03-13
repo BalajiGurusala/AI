@@ -28,6 +28,8 @@ TYPE_WEIGHT = 0.06
 HEAD_NOUN_MISS_PENALTY = 0.50   # multiplicative
 GENDER_MISS_PENALTY = 0.40      # multiplicative
 COLOR_MISS_PENALTY  = 0.45      # multiplicative — product has a clearly different color
+TYPE_MISS_PENALTY   = 0.45      # multiplicative — product_type doesn't match query intent
+QUALIFIER_MISS_PENALTY = 0.40   # multiplicative — qualifying terms absent from title
 LOW_CONFIDENCE_CUTOFF = 0.30
 
 # Color families: query token → canonical family, family → all member tokens
@@ -71,8 +73,8 @@ MALE_TOKENS = {
 ABO_CATEGORY_HINTS: Dict[str, Set[str]] = {
     "shoe": {"SHOES"}, "shoes": {"SHOES"},
     "sneaker": {"SHOES"}, "sneakers": {"SHOES"},
-    "boot": {"SHOES"}, "boots": {"SHOES"},
-    "sandal": {"SHOES"}, "sandals": {"SHOES"},
+    "boot": {"SHOES", "BOOT"}, "boots": {"SHOES", "BOOT"},
+    "sandal": {"SHOES", "SANDAL"}, "sandals": {"SHOES", "SANDAL"},
     "filament": {"THERMOPLASTIC_FILAMENT", "MECHANICAL_COMPONENTS"},
     "pla": {"THERMOPLASTIC_FILAMENT"}, "abs": {"THERMOPLASTIC_FILAMENT"},
     "3d": {"THERMOPLASTIC_FILAMENT"}, "printer": {"THERMOPLASTIC_FILAMENT"},
@@ -169,6 +171,20 @@ def extract_color_intent(query: str) -> Optional[str]:
     return None
 
 
+def extract_qualifier_tokens(query: str) -> set:
+    """Return query tokens that are not stopwords, head nouns, gender, or color.
+
+    These are the descriptive/qualifying terms that narrow intent within a
+    category (e.g. 'sports' in 'sports shoes', 'cotton' in 'cotton shirt').
+    """
+    q_tokens = set(tokenize(query))
+    head = extract_head_nouns(query)
+    color_tok: set = set()
+    for _syns in COLOR_FAMILIES.values():
+        color_tok |= _syns
+    return q_tokens - head - MALE_TOKENS - FEMALE_TOKENS - color_tok
+
+
 def compute_dynamic_alpha(query: str) -> float:
     """Shift alpha: visual queries lower it, technical queries raise it."""
     q_tokens = set(tokenize(query))
@@ -200,7 +216,14 @@ def apply_rerank(
     query: str,
     top_k: int,
 ) -> pd.DataFrame:
-    """Generic production reranker (lexical + head-noun + gender + color + type).
+    """Generic production reranker.
+
+    Penalties applied (all multiplicative):
+      - head-noun miss   : product text lacks the queried category term
+      - gender miss       : product targets opposite gender
+      - color miss        : product explicitly states a different color
+      - type miss         : product_type doesn't match expected types
+      - qualifier miss    : qualifying terms absent from product *title*
 
     Operates on any DataFrame that has 'hybrid_score', 'item_name_flat',
     'enriched_text', 'color_flat', and 'product_type_flat' columns.
@@ -212,6 +235,7 @@ def apply_rerank(
     expected_types = infer_expected_types(query)
     gender_intent = extract_gender_intent(query)
     color_intent = extract_color_intent(query)
+    qualifiers = extract_qualifier_tokens(query)
     target_color_tokens = COLOR_FAMILIES.get(color_intent, set()) if color_intent else set()
     other_color_tokens: Set[str] = set()
     if color_intent:
@@ -244,7 +268,7 @@ def apply_rerank(
     )
 
     # Multiplicative penalties
-    hn_mult_list, gn_mult_list, color_mult_list = [], [], []
+    hn_list, gn_list, color_list, type_list, qual_list = [], [], [], [], []
     for _, row in adjusted.iterrows():
         hay = " ".join([
             str(row.get("item_name_flat", "")),
@@ -254,10 +278,12 @@ def apply_rerank(
         hay_tokens = set(tokenize(hay))
         hay_expanded = expand_compound_tokens(hay_tokens)
 
+        title_tokens = set(tokenize(str(row.get("item_name_flat", "")).lower()))
+        ptype = str(row.get("product_type_flat", "")).upper()
+
         # Head-noun penalty
         hn_mult = 1.0
         if head_nouns and not (head_nouns & hay_expanded):
-            ptype = str(row.get("product_type_flat", "")).upper()
             if not (expected_types and any(t in ptype for t in expected_types)):
                 hn_mult = 1.0 - HEAD_NOUN_MISS_PENALTY
 
@@ -268,9 +294,7 @@ def apply_rerank(
         elif gender_intent == "male" and (hay_tokens & FEMALE_TOKENS) and not (hay_tokens & MALE_TOKENS):
             gn_mult = 1.0 - GENDER_MISS_PENALTY
 
-        # Color penalty: penalize only when the product explicitly states a
-        # DIFFERENT color family AND does NOT mention the target color at all.
-        # Products with no color info are left neutral (benefit of the doubt).
+        # Color penalty
         color_mult = 1.0
         if color_intent:
             product_color = " ".join([
@@ -283,14 +307,37 @@ def apply_rerank(
             if has_other and not has_target:
                 color_mult = 1.0 - COLOR_MISS_PENALTY
 
-        hn_mult_list.append(hn_mult)
-        gn_mult_list.append(gn_mult)
-        color_mult_list.append(color_mult)
+        # Product-type mismatch penalty (independent of head-noun text check).
+        # Fires when the product's type doesn't match any expected type AND
+        # the query doesn't explicitly mention the product's actual type.
+        type_mult = 1.0
+        if expected_types and ptype:
+            if not any(t in ptype for t in expected_types):
+                if ptype not in expected_types:
+                    type_mult = 1.0 - TYPE_MISS_PENALTY
 
-    adjusted["hn_mult"] = hn_mult_list
-    adjusted["gn_mult"] = gn_mult_list
-    adjusted["color_mult"] = color_mult_list
-    adjusted["final_score"] *= adjusted["hn_mult"] * adjusted["gn_mult"] * adjusted["color_mult"]
+        # Qualifier miss penalty: descriptive terms (e.g. 'sports', 'cotton',
+        # 'leather') must appear in the product TITLE (not enriched_text which
+        # can include misleading image captions).
+        qual_mult = 1.0
+        if qualifiers and not (qualifiers & title_tokens):
+            qual_mult = 1.0 - QUALIFIER_MISS_PENALTY
+
+        hn_list.append(hn_mult)
+        gn_list.append(gn_mult)
+        color_list.append(color_mult)
+        type_list.append(type_mult)
+        qual_list.append(qual_mult)
+
+    adjusted["hn_mult"] = hn_list
+    adjusted["gn_mult"] = gn_list
+    adjusted["color_mult"] = color_list
+    adjusted["type_mult"] = type_list
+    adjusted["qual_mult"] = qual_list
+    adjusted["final_score"] *= (
+        adjusted["hn_mult"] * adjusted["gn_mult"] * adjusted["color_mult"]
+        * adjusted["type_mult"] * adjusted["qual_mult"]
+    )
 
     adjusted = adjusted.sort_values("final_score", ascending=False).reset_index(drop=True)
     strong = adjusted[adjusted["final_score"] >= LOW_CONFIDENCE_CUTOFF]

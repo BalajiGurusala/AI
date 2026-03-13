@@ -1,0 +1,15 @@
+# ShopTalk — Local Dev Override (corporate proxy / SSL workaround)
+#
+# Mounts host HuggingFace cache into the container so models don't need
+# to be downloaded through an SSL-intercepting proxy at runtime.
+#
+# Usage (local macOS behind corporate proxy):
+#   docker compose -f docker-compose.yml -f docker-compose.local.yml up -d
+#
+# NOT needed on EC2 or other environments without SSL proxy issues.
+
+services:
+  backend:
+    volumes:
+      - ./data:/app/data:ro
+      - ~/.cache/huggingface:/root/.cache/huggingface:ro

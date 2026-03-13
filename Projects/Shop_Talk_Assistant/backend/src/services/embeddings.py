@@ -117,16 +117,22 @@ class EmbeddingService:
         self.st_model = SentenceTransformer(st_model_source, device=self.device)
         logger.info(f"  Loaded in {time.time()-t0:.1f}s ({sum(p.numel() for p in self.st_model.parameters()):,} params)")
 
-        # Load CLIP
-        from transformers import CLIPModel, CLIPProcessor
-        logger.info(f"Loading CLIP: {clip_model_id}")
-        t0 = time.time()
-        self.clip_model = CLIPModel.from_pretrained(clip_model_id).to(self.device).eval()
-        self.clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
-        logger.info(f"  Loaded in {time.time()-t0:.1f}s")
+        # Load CLIP (graceful — falls back to text-only search if unavailable)
+        try:
+            from transformers import CLIPModel, CLIPProcessor
+            logger.info(f"Loading CLIP: {clip_model_id}")
+            t0 = time.time()
+            self.clip_model = CLIPModel.from_pretrained(clip_model_id).to(self.device).eval()
+            self.clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
+            logger.info(f"  Loaded in {time.time()-t0:.1f}s")
+        except Exception as e:
+            logger.warning(f"CLIP unavailable ({e}). Falling back to text-only search.")
+            self.clip_model = None
+            self.clip_processor = None
 
         self._loaded = True
-        logger.info(f"All models loaded ({len(self.df):,} products indexed)")
+        mode = "text+image" if self.clip_model else "text-only"
+        logger.info(f"All models loaded — {mode} ({len(self.df):,} products indexed)")
 
     def encode_text(self, query: str) -> np.ndarray:
         """Encode query with SentenceTransformer."""
@@ -136,12 +142,22 @@ class EmbeddingService:
         return emb.astype(np.float32)
 
     def encode_clip(self, query: str) -> np.ndarray:
-        """Encode query with CLIP text encoder."""
+        """Encode query with CLIP text encoder (returns zero vector if CLIP unavailable)."""
+        if self.clip_model is None or self.clip_processor is None:
+            clip_dim = self.image_index.shape[1] if self.image_index is not None else 512
+            return np.zeros((1, clip_dim), dtype=np.float32)
         inputs = self.clip_processor(
             text=[query], return_tensors="pt", padding=True, truncation=True
         ).to(self.device)
         with torch.no_grad():
             features = self.clip_model.get_text_features(**inputs)
+        if not isinstance(features, torch.Tensor):
+            t = getattr(features, "text_embeds", None)
+            if t is None:
+                t = getattr(features, "pooler_output", None)
+            if t is None:
+                t = features.last_hidden_state[:, 0, :]
+            features = t
         emb = features.cpu().numpy().astype(np.float32)
         norms = np.linalg.norm(emb, axis=1, keepdims=True)
         return emb / np.where(norms == 0, 1, norms)

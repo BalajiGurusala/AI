@@ -167,7 +167,9 @@ def _row_to_product(row, image_base: str = "/images") -> Product:
     """Convert a DataFrame row to a Product schema."""
     image_url = None
     if pd.notna(row.get("path")):
-        image_url = f"{image_base}/{row['path']}"
+        # Return the raw relative path (e.g. "61/61qDpuL7u1L.jpg") so the
+        # frontend can build either a local file path or a public S3 URL.
+        image_url = str(row["path"]).strip()
 
     return Product(
         id=str(row.get("item_id", "")),
