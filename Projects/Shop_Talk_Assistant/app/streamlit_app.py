@@ -866,6 +866,10 @@ def main():
 
     # ==================================================================
     # Voice Input Processing (mic widget lives in sidebar)
+    # Step 1: Capture raw audio and rerun instantly so the widget
+    #         gets a fast response (prevents the "error" flash).
+    # Step 2: On the next execution, _pending_voice_audio is detected
+    #         and the heavy transcription + processing happens.
     # ==================================================================
     if voice_enabled and _sidebar_audio_data is not None:
         audio_bytes = _sidebar_audio_data.read()
@@ -874,46 +878,49 @@ def main():
 
         if audio_bytes and not already_processed:
             st.session_state._last_voice_hash = audio_hash
-            with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
-                if USE_BACKEND:
-                    try:
-                        voice_result = _backend_voice(
-                            audio_bytes, price_max=price_max, category=category,
-                        )
-                        transcript = voice_result.get("transcript", "")
-                        stt_status.write(f"✅ Heard: \"{transcript}\"")
+            st.session_state._pending_voice_audio = audio_bytes
+            st.session_state.voice_input_nonce += 1
+            st.rerun()
 
-                        if transcript:
-                            st.session_state.messages.append({
-                                "role": "user",
-                                "content": f"🎙️ {transcript}",
-                            })
-                            st.session_state._voice_result = voice_result
-                            st.session_state._voice_transcript = transcript
-                            st.session_state.voice_input_nonce += 1
-                            stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
-                            st.rerun()
-                        else:
-                            stt_status.update(label="Could not understand audio", state="error")
-                    except Exception as e:
-                        stt_status.write(f"❌ Error: {str(e)[:100]}")
-                        stt_status.update(label="Voice error", state="error")
-                else:
-                    transcript = local_transcribe(audio_bytes)
+    # Step 2: Transcribe the stored audio (runs on the rerun, widget already refreshed)
+    if "_pending_voice_audio" in st.session_state:
+        _pv_audio = st.session_state.pop("_pending_voice_audio")
+        with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
+            if USE_BACKEND:
+                try:
+                    voice_result = _backend_voice(
+                        _pv_audio, price_max=price_max, category=category,
+                    )
+                    transcript = voice_result.get("transcript", "")
+                    stt_status.write(f"✅ Heard: \"{transcript}\"")
+
                     if transcript:
-                        stt_status.write(f"✅ Heard: \"{transcript}\"")
                         st.session_state.messages.append({
                             "role": "user",
                             "content": f"🎙️ {transcript}",
                         })
+                        st.session_state._voice_result = voice_result
                         st.session_state._voice_transcript = transcript
-                        st.session_state.voice_input_nonce += 1
                         stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
-                        st.rerun()
                     else:
                         stt_status.update(label="Could not understand audio", state="error")
+                except Exception as e:
+                    stt_status.write(f"❌ Error: {str(e)[:100]}")
+                    stt_status.update(label="Voice error", state="error")
+            else:
+                transcript = local_transcribe(_pv_audio)
+                if transcript:
+                    stt_status.write(f"✅ Heard: \"{transcript}\"")
+                    st.session_state.messages.append({
+                        "role": "user",
+                        "content": f"🎙️ {transcript}",
+                    })
+                    st.session_state._voice_transcript = transcript
+                    stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
+                else:
+                    stt_status.update(label="Could not understand audio", state="error")
 
-    # Process pending voice result (after rerun from voice input)
+    # Process pending voice result
     if "_voice_transcript" in st.session_state:
         prompt = st.session_state._voice_transcript
         voice_result = st.session_state.pop("_voice_result", None)
