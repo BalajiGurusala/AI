@@ -18,7 +18,6 @@ import sys
 import io
 import json
 import time
-import re
 import base64
 from pathlib import Path
 from typing import Optional, List, Dict, Any
@@ -499,7 +498,7 @@ def rag_generate(
 ABO_IMAGE_BASE_URL = "https://amazon-berkeley-objects.s3.amazonaws.com/images/small"
 
 
-def render_product_card(row: pd.Series, data_dir: Path, col):
+def render_product_card(row: pd.Series, data_dir: Path, col, key_prefix: str = ""):
     """Render a product card in a Streamlit column."""
     with col:
         # Image: try local file first, then ABO public S3 URL, then placeholder
@@ -517,7 +516,7 @@ def render_product_card(row: pd.Series, data_dir: Path, col):
                 image_src = f"{ABO_IMAGE_BASE_URL}/{rel_path}"
 
         if image_src:
-            st.image(image_src, use_container_width=True)
+            st.image(image_src, width="stretch")
         else:
             st.markdown(
                 '<div style="background:#f0f0f0; border-radius:8px; height:150px; '
@@ -556,10 +555,10 @@ def render_product_card(row: pd.Series, data_dir: Path, col):
             st.caption(f"📸 {caption}")
 
         # Add to Cart button (mock)
-        st.button("🛒 Add to Cart", key=f"cart_{row.get('item_id', id(row))}", type="secondary")
+        st.button("🛒 Add to Cart", key=f"cart_{key_prefix}{row.get('item_id', id(row))}", type="secondary")
 
 
-def render_product_grid(results: pd.DataFrame, data_dir: Path):
+def render_product_grid(results: pd.DataFrame, data_dir: Path, key_prefix: str = ""):
     """Render a grid of product cards."""
     if results.empty:
         return
@@ -571,7 +570,7 @@ def render_product_grid(results: pd.DataFrame, data_dir: Path):
     for i in range(n_products):
         row = results.iloc[i]
         col = cols[i % n_cols]
-        render_product_card(row, data_dir, col)
+        render_product_card(row, data_dir, col, key_prefix=key_prefix)
 
 
 # ===========================================================================
@@ -752,6 +751,10 @@ def main():
         st_model, clip_model, clip_processor, device = load_search_models(config, data_dir)
         product_count = len(df)
 
+    # Early session-state init (needed by sidebar audio widget)
+    if "voice_input_nonce" not in st.session_state:
+        st.session_state.voice_input_nonce = 0
+
     # ==================================================================
     # Sidebar
     # ==================================================================
@@ -815,6 +818,13 @@ def main():
         voice_enabled = st.toggle("Enable voice input", value=False)
         tts_enabled = st.toggle("Read responses aloud", value=False)
 
+        _sidebar_audio_data = None
+        if voice_enabled:
+            _voice_key = f"voice_input_{st.session_state.voice_input_nonce}"
+            _sidebar_audio_data = st.audio_input(
+                "🎙️ Record your question", key=_voice_key,
+            )
+
         # Clear chat
         st.divider()
         if st.button("🗑️ Clear Chat", type="primary", use_container_width=True):
@@ -829,7 +839,6 @@ def main():
         st.session_state.messages = []
     if "products" not in st.session_state:
         st.session_state.products = {}  # Maps message index to product results
-
     # ==================================================================
     # Header
     # ==================================================================
@@ -853,65 +862,56 @@ def main():
                 products_df = st.session_state.products[i]
                 if not products_df.empty:
                     st.markdown("---")
-                    render_product_grid(products_df, data_dir)
+                    render_product_grid(products_df, data_dir, key_prefix=f"h{i}_")
 
     # ==================================================================
-    # Voice Input (microphone recording)
+    # Voice Input Processing (mic widget lives in sidebar)
     # ==================================================================
-    if voice_enabled:
-        # Static key + session-state deletion is the reliable Streamlit pattern
-        # to reset st.audio_input. Deleting "voice_input" from session_state
-        # before st.rerun() forces the widget to reinitialize as empty.
-        audio_data = st.audio_input("🎙️ Record your question", key="voice_input")
+    if voice_enabled and _sidebar_audio_data is not None:
+        audio_bytes = _sidebar_audio_data.read()
+        audio_hash = hash(audio_bytes) if audio_bytes else None
+        already_processed = audio_hash and audio_hash == st.session_state.get("_last_voice_hash")
 
-        if audio_data is not None:
-            audio_bytes = audio_data.read()
-            # Guard: skip if we already processed this exact recording
-            audio_hash = hash(audio_bytes) if audio_bytes else None
-            already_processed = audio_hash and audio_hash == st.session_state.get("_last_voice_hash")
+        if audio_bytes and not already_processed:
+            st.session_state._last_voice_hash = audio_hash
+            with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
+                if USE_BACKEND:
+                    try:
+                        voice_result = _backend_voice(
+                            audio_bytes, price_max=price_max, category=category,
+                        )
+                        transcript = voice_result.get("transcript", "")
+                        stt_status.write(f"✅ Heard: \"{transcript}\"")
 
-            if audio_bytes and not already_processed:
-                st.session_state._last_voice_hash = audio_hash
-                with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
-                    if USE_BACKEND:
-                        try:
-                            voice_result = _backend_voice(
-                                audio_bytes, price_max=price_max, category=category,
-                            )
-                            transcript = voice_result.get("transcript", "")
-                            stt_status.write(f"✅ Heard: \"{transcript}\"")
-
-                            if transcript:
-                                st.session_state.messages.append({
-                                    "role": "user",
-                                    "content": f"🎙️ {transcript}",
-                                })
-                                st.session_state._voice_result = voice_result
-                                st.session_state._voice_transcript = transcript
-                                # Delete widget state to reset recorder on next render
-                                st.session_state.pop("voice_input", None)
-                                stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
-                                st.rerun()
-                            else:
-                                stt_status.update(label="Could not understand audio", state="error")
-                        except Exception as e:
-                            stt_status.write(f"❌ Error: {str(e)[:100]}")
-                            stt_status.update(label="Voice error", state="error")
-                    else:
-                        transcript = local_transcribe(audio_bytes)
                         if transcript:
-                            stt_status.write(f"✅ Heard: \"{transcript}\"")
                             st.session_state.messages.append({
                                 "role": "user",
                                 "content": f"🎙️ {transcript}",
                             })
+                            st.session_state._voice_result = voice_result
                             st.session_state._voice_transcript = transcript
-                            # Delete widget state to reset recorder on next render
-                            st.session_state.pop("voice_input", None)
+                            st.session_state.voice_input_nonce += 1
                             stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
                             st.rerun()
                         else:
                             stt_status.update(label="Could not understand audio", state="error")
+                    except Exception as e:
+                        stt_status.write(f"❌ Error: {str(e)[:100]}")
+                        stt_status.update(label="Voice error", state="error")
+                else:
+                    transcript = local_transcribe(audio_bytes)
+                    if transcript:
+                        stt_status.write(f"✅ Heard: \"{transcript}\"")
+                        st.session_state.messages.append({
+                            "role": "user",
+                            "content": f"🎙️ {transcript}",
+                        })
+                        st.session_state._voice_transcript = transcript
+                        st.session_state.voice_input_nonce += 1
+                        stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
+                        st.rerun()
+                    else:
+                        stt_status.update(label="Could not understand audio", state="error")
 
     # Process pending voice result (after rerun from voice input)
     if "_voice_transcript" in st.session_state:
@@ -919,7 +919,6 @@ def main():
         voice_result = st.session_state.pop("_voice_result", None)
         del st.session_state._voice_transcript
 
-        # Process this voice query through the same pipeline as text
         with st.chat_message("user"):
             st.markdown(f"🎙️ {prompt}")
 
@@ -962,7 +961,11 @@ def main():
                 else:
                     llm = load_llm(selected_model) if selected_model != "none" else None
                     if llm:
-                        response_text = rag_generate(query=prompt, results=results, llm=llm, session_history=[])
+                        try:
+                            response_text = rag_generate(query=prompt, results=results, llm=llm, session_history=[])
+                        except Exception as e:
+                            response_text = "Here are the matching products:"
+                            status.write(f"⚠️ LLM error: {str(e)[:80]}")
                     else:
                         response_text = "Here are the matching products:"
 
@@ -980,7 +983,7 @@ def main():
             if not results.empty:
                 st.session_state.products[msg_idx] = results
                 st.markdown("---")
-                render_product_grid(results, data_dir)
+                render_product_grid(results, data_dir, key_prefix=f"v{msg_idx}_")
 
             st.session_state.messages.append({
                 "role": "assistant",
@@ -1105,7 +1108,7 @@ def main():
             if not results.empty:
                 st.session_state.products[msg_idx] = results
                 st.markdown("---")
-                render_product_grid(results, data_dir)
+                render_product_grid(results, data_dir, key_prefix=f"t{msg_idx}_")
 
             # Save assistant message
             st.session_state.messages.append({
