@@ -27,7 +27,32 @@ TITLE_WEIGHT = 0.10
 TYPE_WEIGHT = 0.06
 HEAD_NOUN_MISS_PENALTY = 0.50   # multiplicative
 GENDER_MISS_PENALTY = 0.40      # multiplicative
+COLOR_MISS_PENALTY  = 0.45      # multiplicative — product has a clearly different color
 LOW_CONFIDENCE_CUTOFF = 0.30
+
+# Color families: query token → canonical family, family → all member tokens
+# A product is penalized when its color field contains tokens from a DIFFERENT
+# family than the one the user requested.
+COLOR_FAMILIES: Dict[str, Set[str]] = {
+    "red":    {"red", "crimson", "scarlet", "burgundy", "ruby", "cherry",
+               "mandarina", "cardinal", "garnet", "wine", "bordeaux"},
+    "blue":   {"blue", "navy", "cobalt", "azure", "royal", "indigo", "denim",
+               "sapphire", "teal", "turquoise", "aqua"},
+    "green":  {"green", "olive", "emerald", "sage", "lime", "mint", "forest",
+               "khaki", "hunter", "moss"},
+    "black":  {"black", "ebony", "charcoal", "onyx", "jet"},
+    "white":  {"white", "ivory", "cream", "pearl", "snow", "vanilla"},
+    "brown":  {"brown", "tan", "beige", "caramel", "chocolate", "taupe",
+               "cognac", "mocha", "chestnut", "sand"},
+    "pink":   {"pink", "rose", "blush", "magenta", "fuchsia", "flamingo",
+               "bubblegum", "mauve"},
+    "purple": {"purple", "violet", "lavender", "lilac", "plum", "grape",
+               "orchid", "amethyst"},
+    "yellow": {"yellow", "gold", "amber", "mustard", "lemon", "canary"},
+    "orange": {"orange", "coral", "peach", "rust", "terracotta", "apricot",
+               "pumpkin"},
+    "grey":   {"grey", "gray", "silver", "ash", "slate", "pewter"},
+}
 
 QUERY_STOPWORDS = {
     "for", "with", "and", "the", "a", "an", "in", "on", "to", "of", "by",
@@ -131,6 +156,19 @@ def extract_gender_intent(query: str) -> Optional[str]:
     return None
 
 
+def extract_color_intent(query: str) -> Optional[str]:
+    """Return the canonical color family name if the query mentions a color.
+
+    Returns e.g. 'red', 'blue', 'black', or None if no color term found.
+    Checks both direct family names and all synonym tokens.
+    """
+    q_tokens = set(tokenize(query))
+    for family, synonyms in COLOR_FAMILIES.items():
+        if q_tokens & synonyms:
+            return family
+    return None
+
+
 def compute_dynamic_alpha(query: str) -> float:
     """Shift alpha: visual queries lower it, technical queries raise it."""
     q_tokens = set(tokenize(query))
@@ -162,10 +200,10 @@ def apply_rerank(
     query: str,
     top_k: int,
 ) -> pd.DataFrame:
-    """Generic production reranker (lexical + head-noun + gender + type).
+    """Generic production reranker (lexical + head-noun + gender + color + type).
 
     Operates on any DataFrame that has 'hybrid_score', 'item_name_flat',
-    'enriched_text', and 'product_type_flat' columns.
+    'enriched_text', 'color_flat', and 'product_type_flat' columns.
     """
     if results.empty:
         return results
@@ -173,6 +211,13 @@ def apply_rerank(
     head_nouns = extract_head_nouns(query)
     expected_types = infer_expected_types(query)
     gender_intent = extract_gender_intent(query)
+    color_intent = extract_color_intent(query)
+    target_color_tokens = COLOR_FAMILIES.get(color_intent, set()) if color_intent else set()
+    other_color_tokens: Set[str] = set()
+    if color_intent:
+        for fam, synonyms in COLOR_FAMILIES.items():
+            if fam != color_intent:
+                other_color_tokens |= synonyms
 
     adjusted = results.copy()
 
@@ -199,7 +244,7 @@ def apply_rerank(
     )
 
     # Multiplicative penalties
-    hn_mult_list, gn_mult_list = [], []
+    hn_mult_list, gn_mult_list, color_mult_list = [], [], []
     for _, row in adjusted.iterrows():
         hay = " ".join([
             str(row.get("item_name_flat", "")),
@@ -209,24 +254,43 @@ def apply_rerank(
         hay_tokens = set(tokenize(hay))
         hay_expanded = expand_compound_tokens(hay_tokens)
 
+        # Head-noun penalty
         hn_mult = 1.0
         if head_nouns and not (head_nouns & hay_expanded):
             ptype = str(row.get("product_type_flat", "")).upper()
             if not (expected_types and any(t in ptype for t in expected_types)):
                 hn_mult = 1.0 - HEAD_NOUN_MISS_PENALTY
 
+        # Gender penalty
         gn_mult = 1.0
         if gender_intent == "female" and (hay_tokens & MALE_TOKENS) and not (hay_tokens & FEMALE_TOKENS):
             gn_mult = 1.0 - GENDER_MISS_PENALTY
         elif gender_intent == "male" and (hay_tokens & FEMALE_TOKENS) and not (hay_tokens & MALE_TOKENS):
             gn_mult = 1.0 - GENDER_MISS_PENALTY
 
+        # Color penalty: penalize only when the product explicitly states a
+        # DIFFERENT color family AND does NOT mention the target color at all.
+        # Products with no color info are left neutral (benefit of the doubt).
+        color_mult = 1.0
+        if color_intent:
+            product_color = " ".join([
+                str(row.get("color_flat", "")),
+                str(row.get("item_name_flat", "")),
+            ]).lower()
+            color_tokens = set(tokenize(product_color))
+            has_target  = bool(color_tokens & target_color_tokens)
+            has_other   = bool(color_tokens & other_color_tokens)
+            if has_other and not has_target:
+                color_mult = 1.0 - COLOR_MISS_PENALTY
+
         hn_mult_list.append(hn_mult)
         gn_mult_list.append(gn_mult)
+        color_mult_list.append(color_mult)
 
     adjusted["hn_mult"] = hn_mult_list
     adjusted["gn_mult"] = gn_mult_list
-    adjusted["final_score"] *= adjusted["hn_mult"] * adjusted["gn_mult"]
+    adjusted["color_mult"] = color_mult_list
+    adjusted["final_score"] *= adjusted["hn_mult"] * adjusted["gn_mult"] * adjusted["color_mult"]
 
     adjusted = adjusted.sort_values("final_score", ascending=False).reset_index(drop=True)
     strong = adjusted[adjusted["final_score"] >= LOW_CONFIDENCE_CUTOFF]

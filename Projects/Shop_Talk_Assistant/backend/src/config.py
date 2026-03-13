@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     # --- Model IDs ---
     text_model_id: str = "all-MiniLM-L6-v2"
     clip_model_id: str = "openai/clip-vit-base-patch32"
+    finetuned_model_path: Optional[str] = None  # local path to fine-tuned ST model
 
     # --- LLM ---
     ollama_base_url: str = "http://ollama:11434"

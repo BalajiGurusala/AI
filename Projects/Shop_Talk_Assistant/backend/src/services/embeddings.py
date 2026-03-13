@@ -36,7 +36,13 @@ class EmbeddingService:
     def is_loaded(self) -> bool:
         return self._loaded
 
-    def load(self, data_dir: Path, text_model_id: str, clip_model_id: str):
+    def load(
+        self,
+        data_dir: Path,
+        text_model_id: str,
+        clip_model_id: str,
+        finetuned_model_path: Optional[str] = None,
+    ):
         """Load all models and data. Call once at startup."""
         if self._loaded:
             logger.info("Models already loaded — skipping")
@@ -84,12 +90,32 @@ class EmbeddingService:
             with open(cfg_path) as f:
                 self.config = json.load(f)
 
-        # Load SentenceTransformer
+        # Load SentenceTransformer (prefer configured fine-tuned path, then default location)
         from sentence_transformers import SentenceTransformer
-        logger.info(f"Loading SentenceTransformer: {text_model_id}")
+        st_model_source = text_model_id
+
+        # 1) Explicit setting from env/config
+        if finetuned_model_path:
+            configured_path = Path(finetuned_model_path)
+            if configured_path.exists():
+                st_model_source = str(configured_path)
+                logger.info(f"Loading FINE-TUNED SentenceTransformer from configured path: {configured_path}")
+            else:
+                logger.warning(
+                    f"Configured FINETUNED_MODEL_PATH does not exist: {configured_path}. "
+                    f"Falling back to {text_model_id}."
+                )
+        else:
+            # 2) Conventional default export location from NB05
+            ft_model_dir = data_dir / "models" / "finetuned-shoptalk-emb"
+            if ft_model_dir.exists():
+                st_model_source = str(ft_model_dir)
+                logger.info(f"Loading FINE-TUNED SentenceTransformer from {ft_model_dir}")
+            else:
+                logger.info(f"Loading base SentenceTransformer: {text_model_id}")
         t0 = time.time()
-        self.st_model = SentenceTransformer(text_model_id, device=self.device)
-        logger.info(f"  Loaded in {time.time()-t0:.1f}s")
+        self.st_model = SentenceTransformer(st_model_source, device=self.device)
+        logger.info(f"  Loaded in {time.time()-t0:.1f}s ({sum(p.numel() for p in self.st_model.parameters()):,} params)")
 
         # Load CLIP
         from transformers import CLIPModel, CLIPProcessor

@@ -185,9 +185,13 @@ def load_data():
     return df, text_index, image_index, config, data_dir
 
 
-@st.cache_resource(show_spinner="Loading search models...")
-def load_search_models(config: dict):
-    """Load SentenceTransformer and CLIP models for hybrid search."""
+@st.cache_resource(show_spinner="Loading search models (ST + CLIP)...")
+def load_search_models(config: dict, data_dir: Path):
+    """Load SentenceTransformer and CLIP at startup (once, then cached).
+
+    Loading everything upfront means all queries are instant. CLIP is
+    best-effort: if it fails the app falls back to text-only search.
+    """
     import torch
     from sentence_transformers import SentenceTransformer
     from transformers import CLIPModel, CLIPProcessor
@@ -201,11 +205,66 @@ def load_search_models(config: dict):
     st_model_id = config.get("text_model_id", "all-MiniLM-L6-v2")
     clip_model_id = config.get("image_model_id", "openai/clip-vit-base-patch32")
 
-    st_model = SentenceTransformer(st_model_id, device=device)
-    clip_model = CLIPModel.from_pretrained(clip_model_id).to(device).eval()
-    clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
+    ft_env_path = os.getenv("FINETUNED_MODEL_PATH", "").strip()
+    if ft_env_path and Path(ft_env_path).exists():
+        st_model_source = ft_env_path
+    else:
+        default_ft_path = data_dir / "models" / "finetuned-shoptalk-emb"
+        st_model_source = str(default_ft_path) if default_ft_path.exists() else st_model_id
+
+    st_model = SentenceTransformer(st_model_source, device=device)
+
+    clip_model, clip_processor = None, None
+    try:
+        import logging as _logging
+        # Suppress noisy-but-harmless CLIP load messages:
+        #   "unexpected keys" (position_ids), "layers not sharded", HF Hub auth hint
+        for _noisy_logger in (
+            "transformers.modeling_utils",
+            "transformers.models.clip.modeling_clip",
+            "huggingface_hub.file_download",
+            "huggingface_hub.utils._headers",
+        ):
+            _logging.getLogger(_noisy_logger).setLevel(_logging.ERROR)
+        clip_model = CLIPModel.from_pretrained(clip_model_id).to(device).eval()
+        clip_processor = CLIPProcessor.from_pretrained(clip_model_id)
+        for _noisy_logger in (
+            "transformers.modeling_utils",
+            "transformers.models.clip.modeling_clip",
+            "huggingface_hub.file_download",
+            "huggingface_hub.utils._headers",
+        ):
+            _logging.getLogger(_noisy_logger).setLevel(_logging.WARNING)
+    except Exception as e:
+        st.warning(
+            f"⚠️ CLIP model could not be loaded ({type(e).__name__}). "
+            "Falling back to **text-only search** — all features still work.",
+            icon="ℹ️",
+        )
 
     return st_model, clip_model, clip_processor, device
+
+
+def _make_ssl_httpx_client():
+    """Return an httpx.Client configured with the corporate SSL cert if present.
+
+    httpx does not automatically read SSL_CERT_FILE when instantiated inside
+    third-party libraries (OpenAI, Groq). We inject the cert explicitly so
+    that API calls work through a corporate HTTPS proxy.
+    """
+    import ssl as _ssl
+    import httpx as _httpx
+
+    cert_path = (
+        os.getenv("SSL_CERT_FILE", "")
+        or os.getenv("REQUESTS_CA_BUNDLE", "")
+    ).strip()
+
+    if cert_path and Path(cert_path).exists():
+        ctx = _ssl.create_default_context(cafile=cert_path)
+        return _httpx.Client(verify=ctx, timeout=30.0)
+
+    return _httpx.Client(timeout=30.0)
 
 
 @st.cache_resource(show_spinner="Connecting to LLM...")
@@ -237,6 +296,7 @@ def load_llm(model_key: str):
             return ChatOpenAI(
                 model=model_key, api_key=api_key,
                 temperature=0.3, max_tokens=512, request_timeout=30,
+                http_client=_make_ssl_httpx_client(),
             )
         except Exception:
             return None
@@ -251,6 +311,7 @@ def load_llm(model_key: str):
             return ChatGroq(
                 model=groq_model, api_key=api_key,
                 temperature=0.3, max_tokens=512,
+                http_client=_make_ssl_httpx_client(),
             )
         except Exception:
             return None
@@ -311,19 +372,41 @@ def run_search(
     price_max: float = None,
     category: str = None,
 ) -> pd.DataFrame:
-    """Thin wrapper: creates query encoders and delegates to src/search.hybrid_search."""
+    """Thin wrapper: creates query encoders and delegates to src/search.hybrid_search.
+
+    Falls back to text-only (alpha=1.0) if clip_model is None.
+    """
     import torch
 
     def encode_text(q: str) -> np.ndarray:
         return st_model.encode([q], show_progress_bar=False,
                                normalize_embeddings=True).astype(np.float32)
 
-    def encode_clip_fn(q: str) -> np.ndarray:
-        inputs = clip_processor(text=[q], return_tensors="pt",
-                                padding=True, truncation=True).to(device)
-        with torch.no_grad():
-            feats = clip_model.get_text_features(**inputs)
-        return l2_normalize(feats.cpu().numpy().astype(np.float32))
+    if clip_model is not None and clip_processor is not None:
+        def encode_clip_fn(q: str) -> np.ndarray:
+            inputs = clip_processor(text=[q], return_tensors="pt",
+                                    padding=True, truncation=True).to(device)
+            with torch.no_grad():
+                feats = clip_model.get_text_features(**inputs)
+            # transformers ≥4.x may return a model-output object instead of a
+            # plain tensor depending on the model config's return_dict setting.
+            # Use explicit None checks — 'or' triggers bool(tensor) which raises.
+            if not isinstance(feats, torch.Tensor):
+                t = getattr(feats, "text_embeds", None)
+                if t is None:
+                    t = getattr(feats, "pooler_output", None)
+                if t is None:
+                    t = feats.last_hidden_state[:, 0, :]
+                feats = t
+            return l2_normalize(feats.cpu().numpy().astype(np.float32))
+        alpha = None  # dynamic alpha (text + image)
+    else:
+        # Text-only fallback: zero CLIP vector, alpha=1.0 ignores image scores
+        clip_dim = image_index.shape[1] if image_index is not None else 512
+
+        def encode_clip_fn(q: str) -> np.ndarray:  # noqa: F811
+            return np.zeros((1, clip_dim), dtype=np.float32)
+        alpha = 1.0  # pure text search
 
     return _hybrid_search(
         query=query,
@@ -333,6 +416,7 @@ def run_search(
         encode_text_fn=encode_text,
         encode_clip_fn=encode_clip_fn,
         top_k=top_k,
+        alpha=alpha,
         price_max=price_max,
         category=category,
     )
@@ -412,20 +496,28 @@ def rag_generate(
 # Product Card Rendering
 # ===========================================================================
 
+ABO_IMAGE_BASE_URL = "https://amazon-berkeley-objects.s3.amazonaws.com/images/small"
+
+
 def render_product_card(row: pd.Series, data_dir: Path, col):
     """Render a product card in a Streamlit column."""
     with col:
-        # Image
-        image_path = None
-        if pd.notna(row.get("path")):
+        # Image: try local file first, then ABO public S3 URL, then placeholder
+        image_src = None
+        img_path_val = row.get("path")
+        if pd.notna(img_path_val) and str(img_path_val).strip():
+            rel_path = str(img_path_val).strip()
             for base in [data_dir / "images" / "small", data_dir / ".." / "data" / "images" / "small"]:
-                candidate = base / str(row["path"])
+                candidate = base / rel_path
                 if candidate.exists():
-                    image_path = candidate
+                    image_src = str(candidate)
                     break
+            if image_src is None:
+                # Fall back to public ABO S3 URL (no local images needed)
+                image_src = f"{ABO_IMAGE_BASE_URL}/{rel_path}"
 
-        if image_path and image_path.exists():
-            st.image(str(image_path), use_container_width=True)
+        if image_src:
+            st.image(image_src, use_container_width=True)
         else:
             st.markdown(
                 '<div style="background:#f0f0f0; border-radius:8px; height:150px; '
@@ -515,17 +607,50 @@ def local_transcribe(audio_bytes: bytes) -> str:
         Path(temp_path).unlink(missing_ok=True)
 
 
-def local_tts(text: str) -> bytes:
-    """Convert text to speech locally using gTTS. Returns MP3 bytes."""
+def local_tts(text: str) -> tuple[bytes, str]:
+    """Convert text to speech. Returns (audio_bytes, format_string).
+
+    Strategy (offline-first):
+      1. macOS built-in `say` + `afconvert` to WAV  — no network, instant
+      2. gTTS (Google TTS)                           — requires internet
+      3. Returns (b"", "") if both fail
+    """
+    import subprocess, tempfile, os, platform
+
+    # Truncate very long responses to avoid excessive audio
+    tts_text = text[:600] + ("..." if len(text) > 600 else "")
+
+    # --- Option 1: macOS offline TTS (say + afconvert) ---
+    if platform.system() == "Darwin":
+        try:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                aiff_path = os.path.join(tmp_dir, "out.aiff")
+                wav_path  = os.path.join(tmp_dir, "out.wav")
+                subprocess.run(
+                    ["say", "-o", aiff_path, tts_text],
+                    timeout=15, check=True, capture_output=True,
+                )
+                subprocess.run(
+                    ["afconvert", "-f", "WAVE", "-d", "LEI16@22050", aiff_path, wav_path],
+                    timeout=10, check=True, capture_output=True,
+                )
+                with open(wav_path, "rb") as f:
+                    return f.read(), "audio/wav"
+        except Exception:
+            pass  # fall through to gTTS
+
+    # --- Option 2: gTTS (online) ---
     try:
         from gtts import gTTS
         buf = io.BytesIO()
-        tts = gTTS(text=text, lang="en", slow=False)
+        tts = gTTS(text=tts_text, lang="en", slow=False)
         tts.write_to_fp(buf)
         buf.seek(0)
-        return buf.read()
+        return buf.read(), "audio/mp3"
     except Exception:
-        return b""
+        pass
+
+    return b"", ""
 
 
 # ===========================================================================
@@ -624,7 +749,7 @@ def main():
     else:
         # Standalone mode: load models locally
         df, text_index, image_index, config, data_dir = load_data()
-        st_model, clip_model, clip_processor, device = load_search_models(config)
+        st_model, clip_model, clip_processor, device = load_search_models(config, data_dir)
         product_count = len(df)
 
     # ==================================================================
@@ -657,18 +782,7 @@ def main():
 
         # Filters
         st.markdown("### 🔍 Filters")
-
-        # Price filter
-        price_enabled = st.checkbox("Enable price filter", value=False)
-        price_max = None
-        if price_enabled and "price" in df.columns:
-            price_max = st.slider(
-                "Max Price ($)",
-                min_value=5.0,
-                max_value=400.0,
-                value=100.0,
-                step=5.0,
-            )
+        price_max = None  # ABO dataset has no prices
 
         # Category filter
         if not USE_BACKEND and not df.empty:
@@ -745,19 +859,21 @@ def main():
     # Voice Input (microphone recording)
     # ==================================================================
     if voice_enabled:
+        # Static key + session-state deletion is the reliable Streamlit pattern
+        # to reset st.audio_input. Deleting "voice_input" from session_state
+        # before st.rerun() forces the widget to reinitialize as empty.
         audio_data = st.audio_input("🎙️ Record your question", key="voice_input")
+
         if audio_data is not None:
             audio_bytes = audio_data.read()
-            if audio_bytes and "last_audio_hash" not in st.session_state:
-                st.session_state.last_audio_hash = None
+            # Guard: skip if we already processed this exact recording
+            audio_hash = hash(audio_bytes) if audio_bytes else None
+            already_processed = audio_hash and audio_hash == st.session_state.get("_last_voice_hash")
 
-            audio_hash = hash(audio_bytes)
-            if audio_bytes and audio_hash != st.session_state.get("last_audio_hash"):
-                st.session_state.last_audio_hash = audio_hash
-
+            if audio_bytes and not already_processed:
+                st.session_state._last_voice_hash = audio_hash
                 with st.status("🎙️ Transcribing audio...", expanded=True) as stt_status:
                     if USE_BACKEND:
-                        # Backend mode: send audio to /api/v1/voice/query
                         try:
                             voice_result = _backend_voice(
                                 audio_bytes, price_max=price_max, category=category,
@@ -766,14 +882,14 @@ def main():
                             stt_status.write(f"✅ Heard: \"{transcript}\"")
 
                             if transcript:
-                                # Add user message with mic icon
                                 st.session_state.messages.append({
                                     "role": "user",
                                     "content": f"🎙️ {transcript}",
                                 })
-                                # Store the full voice result for processing below
                                 st.session_state._voice_result = voice_result
                                 st.session_state._voice_transcript = transcript
+                                # Delete widget state to reset recorder on next render
+                                st.session_state.pop("voice_input", None)
                                 stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
                                 st.rerun()
                             else:
@@ -782,7 +898,6 @@ def main():
                             stt_status.write(f"❌ Error: {str(e)[:100]}")
                             stt_status.update(label="Voice error", state="error")
                     else:
-                        # Standalone mode: transcribe locally
                         transcript = local_transcribe(audio_bytes)
                         if transcript:
                             stt_status.write(f"✅ Heard: \"{transcript}\"")
@@ -791,6 +906,8 @@ def main():
                                 "content": f"🎙️ {transcript}",
                             })
                             st.session_state._voice_transcript = transcript
+                            # Delete widget state to reset recorder on next render
+                            st.session_state.pop("voice_input", None)
                             stt_status.update(label=f"Transcribed: \"{transcript}\"", state="complete")
                             st.rerun()
                         else:
@@ -853,9 +970,9 @@ def main():
 
                 # Play TTS locally
                 if tts_enabled and response_text:
-                    tts_audio = local_tts(response_text)
+                    tts_audio, tts_fmt = local_tts(response_text)
                     if tts_audio:
-                        st.audio(tts_audio, format="audio/mp3")
+                        st.audio(tts_audio, format=tts_fmt)
 
             st.markdown(response_text)
 
@@ -979,9 +1096,9 @@ def main():
 
             # TTS: Read response aloud (text chat mode)
             if tts_enabled and response_text:
-                tts_audio = local_tts(response_text)
+                tts_audio, tts_fmt = local_tts(response_text)
                 if tts_audio:
-                    st.audio(tts_audio, format="audio/mp3")
+                    st.audio(tts_audio, format=tts_fmt)
 
             # Store and display products
             msg_idx = len(st.session_state.messages)

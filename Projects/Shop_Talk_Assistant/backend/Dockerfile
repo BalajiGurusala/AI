@@ -2,6 +2,7 @@
 FROM python:3.11-slim
 
 WORKDIR /app
+ENV FINETUNED_MODEL_PATH=/app/data/models/finetuned-shoptalk-emb
 
 # System deps (ffmpeg required by Whisper STT)
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -16,14 +17,29 @@ RUN pip install --no-cache-dir -r /app/backend/requirements.txt
 COPY src/ /app/src/
 COPY backend/ /app/backend/
 
-# Pre-download models (cached in image — no download at runtime)
-RUN python -c "\
-from sentence_transformers import SentenceTransformer; \
-SentenceTransformer('all-MiniLM-L6-v2'); \
-from transformers import CLIPModel, CLIPProcessor; \
-CLIPModel.from_pretrained('openai/clip-vit-base-patch32'); \
-CLIPProcessor.from_pretrained('openai/clip-vit-base-patch32'); \
-print('Models cached')"
+# Best-effort model pre-download (non-fatal; runtime will still load if unavailable)
+RUN python - <<'PY'
+import logging
+from sentence_transformers import SentenceTransformer
+from transformers import CLIPModel, CLIPProcessor
+
+logging.basicConfig(level=logging.INFO)
+
+try:
+    SentenceTransformer("all-MiniLM-L6-v2")
+    logging.info("Cached all-MiniLM-L6-v2")
+except Exception as e:
+    logging.warning(f"Could not cache SentenceTransformer at build time: {e}")
+
+try:
+    CLIPModel.from_pretrained("openai/clip-vit-base-patch32")
+    CLIPProcessor.from_pretrained("openai/clip-vit-base-patch32")
+    logging.info("Cached CLIP model/processor")
+except Exception as e:
+    logging.warning(f"Could not cache CLIP at build time: {e}")
+
+print("Model cache step completed")
+PY
 
 EXPOSE 8000
 

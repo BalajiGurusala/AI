@@ -37,6 +37,7 @@ async def lifespan(app: FastAPI):
         data_dir=settings.data_dir,
         text_model_id=settings.text_model_id,
         clip_model_id=settings.clip_model_id,
+        finetuned_model_path=settings.finetuned_model_path,
     )
 
     # Connect to LLM
