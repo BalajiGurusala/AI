@@ -1,0 +1,39 @@
+{
+  "text_model_id": "all-MiniLM-L6-v2",
+  "text_embedding_dim": 384,
+  "image_model_id": "openai/clip-vit-base-patch32",
+  "image_embedding_dim": 512,
+  "alpha_default": 0.6,
+  "search_backend": "chroma",
+  "use_chroma": true,
+  "rerank_enabled": true,
+  "lexical_weight": 0.16,
+  "title_weight": 0.1,
+  "type_weight": 0.06,
+  "head_noun_miss_penalty": 0.5,
+  "gender_miss_penalty": 0.4,
+  "low_confidence_cutoff": 0.3,
+  "abo_category_hint_count": 35,
+  "eval_results": {
+    "Text-Only (\u03b1=1.0)": {
+      "mean_p_at_k": 0.724,
+      "elapsed_s": 0.0
+    },
+    "Image-Only (\u03b1=0.0)": {
+      "mean_p_at_k": 0.716,
+      "elapsed_s": 0.0
+    },
+    "Hybrid (\u03b1=0.6)": {
+      "mean_p_at_k": 0.75,
+      "elapsed_s": 0.0
+    }
+  },
+  "best_alpha_sweep": {
+    "alpha": 0.3,
+    "p_at_5": 0.774
+  },
+  "total_products": 9190,
+  "product_type_count": 334,
+  "device": "cuda",
+  "gpu_name": "Tesla T4"
+}

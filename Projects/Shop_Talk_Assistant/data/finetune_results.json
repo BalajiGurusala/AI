@@ -1,0 +1,55 @@
+{
+  "notebook": "05-fine-tuning",
+  "timestamp": "2026-03-12T03:23:05.924851",
+  "base_model": "all-MiniLM-L6-v2",
+  "finetuned_model_path": "/kaggle/working/models/finetuned-shoptalk-emb",
+  "training": {
+    "n_triplets": 20000,
+    "n_train": 18000,
+    "n_val": 2000,
+    "epochs": 3,
+    "batch_size": 64,
+    "learning_rate": 2e-05,
+    "triplet_margin": 0.5,
+    "hard_negative_ratio": 0.3,
+    "train_time_s": 768.6
+  },
+  "evaluation": {
+    "n_queries": 200,
+    "base_p_at_5": 0.781,
+    "base_p_at_5_std": 0.3332,
+    "finetuned_p_at_5": 0.79,
+    "finetuned_p_at_5_std": 0.3273,
+    "improvement": 0.009,
+    "improvement_pct": 1.2,
+    "best_ft_alpha": 0.7,
+    "best_ft_p_at_5": 0.776
+  },
+  "lora_experiment": {
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "lora_epochs": 1,
+    "lora_p_at_5": 0.788,
+    "lora_p_at_5_std": 0.3278,
+    "lora_train_time_s": 231.8
+  },
+  "vector_store_benchmark": {
+    "faiss_flat": {
+      "build_s": 0.011996984481811523,
+      "query_ms": 0.6241869926452637,
+      "qps": 1602.0840097325088
+    },
+    "faiss_ivf": {
+      "build_s": 0.11437630653381348,
+      "query_ms": 0.09796142578125,
+      "qps": 10208.09968847352
+    },
+    "chromadb": {
+      "build_s": 2.2665598392486572,
+      "query_ms": 1.5798091888427734,
+      "qps": 632.9878361655248
+    }
+  },
+  "device": "cuda",
+  "gpu_name": "Tesla T4"
+}

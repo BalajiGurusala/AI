@@ -1,0 +1,206 @@
+{
+  "source": "04-llm-integration",
+  "description": "50-query evaluation set per test_strategy.md",
+  "queries": [
+    {
+      "query_id": "Q001",
+      "query_text": "red shoes for women"
+    },
+    {
+      "query_id": "Q002",
+      "query_text": "3D printer filament PLA"
+    },
+    {
+      "query_id": "Q003",
+      "query_text": "phone case with colorful design"
+    },
+    {
+      "query_id": "Q004",
+      "query_text": "comfortable cotton t-shirt"
+    },
+    {
+      "query_id": "Q005",
+      "query_text": "kitchen drawer slides hardware"
+    },
+    {
+      "query_id": "Q006",
+      "query_text": "waterproof backpack for hiking"
+    },
+    {
+      "query_id": "Q007",
+      "query_text": "queen size bedding set"
+    },
+    {
+      "query_id": "Q008",
+      "query_text": "modern desk lamp LED"
+    },
+    {
+      "query_id": "Q009",
+      "query_text": "stainless steel men's watch"
+    },
+    {
+      "query_id": "Q010",
+      "query_text": "leather ottoman"
+    },
+    {
+      "query_id": "Q011",
+      "query_text": "blue running sneakers"
+    },
+    {
+      "query_id": "Q012",
+      "query_text": "iPhone case clear"
+    },
+    {
+      "query_id": "Q013",
+      "query_text": "bathroom towel set"
+    },
+    {
+      "query_id": "Q014",
+      "query_text": "wooden dining table"
+    },
+    {
+      "query_id": "Q015",
+      "query_text": "women's sandals summer"
+    },
+    {
+      "query_id": "Q016",
+      "query_text": "ABS filament black"
+    },
+    {
+      "query_id": "Q017",
+      "query_text": "kids' backpack school"
+    },
+    {
+      "query_id": "Q018",
+      "query_text": "decorative throw pillow"
+    },
+    {
+      "query_id": "Q019",
+      "query_text": "men's leather boots"
+    },
+    {
+      "query_id": "Q020",
+      "query_text": "Samsung Galaxy case"
+    },
+    {
+      "query_id": "Q021",
+      "query_text": "ergonomic office chair"
+    },
+    {
+      "query_id": "Q022",
+      "query_text": "kitchen cabinet handles"
+    },
+    {
+      "query_id": "Q023",
+      "query_text": "curtains for bedroom"
+    },
+    {
+      "query_id": "Q024",
+      "query_text": "white cotton polo shirt"
+    },
+    {
+      "query_id": "Q025",
+      "query_text": "ring gold plated"
+    },
+    {
+      "query_id": "Q026",
+      "query_text": "outdoor patio furniture"
+    },
+    {
+      "query_id": "Q027",
+      "query_text": "bathroom shelf hardware"
+    },
+    {
+      "query_id": "Q028",
+      "query_text": "women's winter boots"
+    },
+    {
+      "query_id": "Q029",
+      "query_text": "floor lamp living room"
+    },
+    {
+      "query_id": "Q030",
+      "query_text": "travel luggage carry-on"
+    },
+    {
+      "query_id": "Q031",
+      "query_text": "shower curtain waterproof"
+    },
+    {
+      "query_id": "Q032",
+      "query_text": "men's running shoes Nike"
+    },
+    {
+      "query_id": "Q033",
+      "query_text": "soft bed sheets queen"
+    },
+    {
+      "query_id": "Q034",
+      "query_text": "wall mount shelf bracket"
+    },
+    {
+      "query_id": "Q035",
+      "query_text": "colorful phone case floral"
+    },
+    {
+      "query_id": "Q036",
+      "query_text": "wooden coffee table modern"
+    },
+    {
+      "query_id": "Q037",
+      "query_text": "men's casual t-shirt"
+    },
+    {
+      "query_id": "Q038",
+      "query_text": "silver watch women's"
+    },
+    {
+      "query_id": "Q039",
+      "query_text": "kitchen faucet handle"
+    },
+    {
+      "query_id": "Q040",
+      "query_text": "decorative table lamp"
+    },
+    {
+      "query_id": "Q041",
+      "query_text": "hiking boots waterproof men"
+    },
+    {
+      "query_id": "Q042",
+      "query_text": "silk pillowcase set"
+    },
+    {
+      "query_id": "Q043",
+      "query_text": "phone case with kickstand"
+    },
+    {
+      "query_id": "Q044",
+      "query_text": "velvet ottoman round"
+    },
+    {
+      "query_id": "Q045",
+      "query_text": "drawer pull handles brass"
+    },
+    {
+      "query_id": "Q046",
+      "query_text": "women's athletic sneakers"
+    },
+    {
+      "query_id": "Q047",
+      "query_text": "3D printer nozzle"
+    },
+    {
+      "query_id": "Q048",
+      "query_text": "home storage basket"
+    },
+    {
+      "query_id": "Q049",
+      "query_text": "accent chair for bedroom"
+    },
+    {
+      "query_id": "Q050",
+      "query_text": "men's dress watch classic"
+    }
+  ]
+}

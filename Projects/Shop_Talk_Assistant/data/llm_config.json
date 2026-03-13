@@ -1,0 +1,69 @@
+{
+  "notebook": "04-llm-integration",
+  "timestamp": "2026-03-06T22:11:34.214348",
+  "default_llm": "gpt-4o-mini",
+  "available_llms": [
+    "gpt-4o-mini",
+    "groq/llama-3.3-70b"
+  ],
+  "system_prompt": "You are ShopTalk, a friendly and knowledgeable AI shopping assistant.\nYour job is to help customers find products from our catalog and answer questions about them.\n\nRULES:\n1. ONLY recommend products from the provided context \u2014 never invent products or details.\n2. Be concise and helpful: aim for 2-4 sentences per recommendation.\n3. Highlight relevant features that match the customer's query (color, material, brand, size, etc.).\n4. When showing multiple products, briefly explain WHY each is relevant to the query.\n5. If no products match the query well, honestly say so and suggest trying different keywords.\n6. Use product IDs when referencing products so the UI can display product cards.\n7. Use a warm, conversational tone \u2014 like a helpful store associate.\n8. For follow-up questions, use conversation history for context.\n9. Keep responses under 150 words unless the customer asks for details.\n\nFORMAT:\n- Lead with a brief, friendly answer to the question.\n- Then mention the top 2-3 most relevant products with key details.\n- End with a helpful suggestion or question if appropriate.",
+  "user_template": "Here are the top matching products from our catalog:\n\n{product_context}\n\n---\nCustomer query: {query}\n\nProvide a helpful, concise recommendation based on the products above.",
+  "rag_config": {
+    "text_model_id": "all-MiniLM-L6-v2",
+    "text_embedding_dim": 384,
+    "image_model_id": "openai/clip-vit-base-patch32",
+    "image_embedding_dim": 512,
+    "alpha_default": 0.6,
+    "search_backend": "chroma",
+    "use_chroma": true,
+    "rerank_enabled": true,
+    "lexical_weight": 0.16,
+    "title_weight": 0.1,
+    "type_weight": 0.06,
+    "head_noun_miss_penalty": 0.5,
+    "gender_miss_penalty": 0.4,
+    "low_confidence_cutoff": 0.3,
+    "abo_category_hint_count": 35,
+    "eval_results": {
+      "Text-Only (\u03b1=1.0)": {
+        "mean_p_at_k": 0.724,
+        "elapsed_s": 0.0
+      },
+      "Image-Only (\u03b1=0.0)": {
+        "mean_p_at_k": 0.716,
+        "elapsed_s": 0.0
+      },
+      "Hybrid (\u03b1=0.6)": {
+        "mean_p_at_k": 0.75,
+        "elapsed_s": 0.0
+      }
+    },
+    "best_alpha_sweep": {
+      "alpha": 0.3,
+      "p_at_5": 0.774
+    },
+    "total_products": 9190,
+    "product_type_count": 334,
+    "device": "cuda",
+    "gpu_name": "Tesla T4"
+  },
+  "eval_metrics": [
+    "faithfulness",
+    "relevance",
+    "helpfulness",
+    "naturalness"
+  ],
+  "eval_scale": "0-1",
+  "evaluation_summary": {
+    "n_queries": 50,
+    "faithfulness_mean": 0.974,
+    "relevance_mean": 0.978,
+    "helpfulness_mean": 0.972,
+    "naturalness_mean": 0.982,
+    "retrieval_p95_s": 0.09,
+    "generation_p95_s": 8.207,
+    "total_p95_s": 8.271
+  },
+  "device": "cuda",
+  "gpu_name": "Tesla T4"
+}
