@@ -7,6 +7,12 @@ This repository contains:
 - Production services for serving search + chat (`backend/`, `app/`, `frontend/`).
 - Deployment scripts for local Docker and EC2 (`deploy/`).
 
+## Demo Video Link
+https://drive.google.com/file/d/1SaB17MYzQZL3GWG9niF-BrPRqMMIy1l8/view?usp=drive_link
+
+## Project Code Walkthrough Video Link
+https://drive.google.com/file/d/1A_Rn5Y-Uh55EOXXskNb4TLC6V-rAE5fz/view?usp=drive_link
+
 ## Architecture
 
 ```mermaid
@@ -126,3 +132,6 @@ Resolution order:
 - `src/README.md`
 - `notebooks/README.md`
 - `data/README.md`
+
+## Installation Instructions
+- Please refer INSTALL.md for more details.
