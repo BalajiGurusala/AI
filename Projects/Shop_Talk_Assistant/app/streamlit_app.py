@@ -687,7 +687,7 @@ def _backend_chat(query: str, top_k: int, price_max: float = None,
             for m in session_history[-6:]
         ]
 
-    r = httpx.post(f"{BACKEND_URL}/api/v1/chat", json=payload, timeout=30.0)
+    r = httpx.post(f"{BACKEND_URL}/api/v1/chat", json=payload, timeout=120.0)
     r.raise_for_status()
     return r.json()
 
@@ -703,7 +703,7 @@ def _backend_voice(audio_bytes: bytes, price_max: float = None,
         data["category"] = category
 
     r = httpx.post(f"{BACKEND_URL}/api/v1/voice/query",
-                   files=files, data=data, timeout=30.0)
+                   files=files, data=data, timeout=120.0)
     r.raise_for_status()
     return r.json()
 

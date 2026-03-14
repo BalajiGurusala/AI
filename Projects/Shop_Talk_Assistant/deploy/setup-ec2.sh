@@ -26,8 +26,9 @@ sudo apt-get install -y curl git ca-certificates gnupg
 # --- 2. Docker setup (official Docker repo — includes compose plugin) ---
 echo "[2/5] Installing Docker from official repository..."
 
-# Add Docker's official GPG key
+# Add Docker's official GPG key (remove stale key if present)
 sudo install -m 0755 -d /etc/apt/keyrings
+sudo rm -f /etc/apt/keyrings/docker.gpg
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg | \
     sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
