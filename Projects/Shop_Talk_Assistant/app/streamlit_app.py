@@ -675,6 +675,7 @@ def _backend_chat(query: str, top_k: int, price_max: float = None,
     """Call the backend /api/v1/chat endpoint."""
     payload = {
         "query_text": query,
+        "top_k": top_k,
         "filters": {},
     }
     if price_max is not None:

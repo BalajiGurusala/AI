@@ -40,6 +40,7 @@ class Product(BaseModel):
 class ChatRequest(BaseModel):
     """POST /api/v1/chat request body."""
     query_text: str
+    top_k: int = Field(default=5, ge=1, le=20)
     filters: Optional[Filters] = None
     session_context: Optional[List[ChatMessage]] = None
 

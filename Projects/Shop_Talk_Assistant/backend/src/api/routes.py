@@ -47,7 +47,7 @@ async def chat(request: ChatRequest):
 
     result = rag_query(
         query=request.query_text,
-        top_k=5,
+        top_k=request.top_k,
         filters=request.filters,
         session_context=request.session_context,
     )
